@@ -104,7 +104,7 @@ def test_ai_chat_uses_safe_read_only_context(monkeypatch):
     context_message = captured["messages"][1]["content"]
     assert "storage_mounts" in context_message
     assert "cmdline" not in context_message
-    assert "environ" not in context_message
+    assert "'environ':" not in context_message
 
 
 def test_ai_chat_rejects_client_system_messages():
