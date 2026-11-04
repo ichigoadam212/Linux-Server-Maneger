@@ -44,6 +44,10 @@
         </div></article>
         <article class="panel activity-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="monitoring">MONITORING</div><h2 data-i18n="recentActivity">Recent activity</h2></div><span class="activity-count">03 EVENTS</span></div><div class="activity-list"><div class="activity-row"><span class="activity-dot green"></span><div><b data-i18n="backupCompleted">Backup completed</b><small>/var/backups · 2.4 GB</small></div><time>10:42</time></div><div class="activity-row"><span class="activity-dot blue"></span><div><b data-i18n="serviceRestarted">Service restarted</b><small>nginx.service</small></div><time>09:18</time></div><div class="activity-row"><span class="activity-dot amber"></span><div><b data-i18n="securityScan">Security scan finished</b><small data-i18n="noIssues">No issues detected</small></div><time>08:05</time></div></div><div class="activity-footer" data-i18n="demoActivity">Illustrative activity · not live system events</div></article>
       </section>
+      <section class="module-workspace" id="moduleWorkspace" hidden>
+        <div class="module-head"><div><div class="panel-kicker">LINUXCORE MODULE</div><h2 id="moduleTitle">Module</h2><p id="moduleDescription">Live read-only information from the connected Linux environment.</p></div><button class="outline-btn" id="moduleRefresh">↻ Refresh</button></div>
+        <div id="moduleContent" class="module-content"></div>
+      </section>
       <section class="ai-workspace" id="aiWorkspace" hidden>
         <div class="ai-chat">
           <div class="ai-chat-head"><div><h2 id="aiTitle">DeepSeek AI Assistant</h2><p id="aiSub">Ask about Linux, programming, or analyze your connected host.</p></div><span id="aiStatus" class="ai-status offline">AI NOT CONFIGURED</span></div>
@@ -52,7 +56,7 @@
         </div>
         <aside class="ai-info"><h3>PRIVACY & CONTEXT</h3><label class="ai-check"><input type="checkbox" id="aiIncludeContext"><span id="aiContextLabel">Include aggregate host metrics in this request</span></label><p id="aiPrivacy">Only aggregate CPU, memory, disk, uptime and storage summary are shared. No process details or secrets.</p><div id="aiSetup" class="ai-setup">Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.</div></aside>
       </section>
-      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.1.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
+      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.4.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
     </main>
   </div>
   <div id="toast" role="status"></div><script src="app.js"></script>
