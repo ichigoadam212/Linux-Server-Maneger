@@ -156,13 +156,14 @@ def network():
     except (PermissionError, OSError):
         stats = {}
     for name, counter in counters.items():
+        interface_status = stats.get(name)
         interfaces.append({
             "name": name,
             "bytes_sent": counter.bytes_sent,
             "bytes_recv": counter.bytes_recv,
             "packets_sent": counter.packets_sent,
             "packets_recv": counter.packets_recv,
-            "is_up": bool((stats.get(name) or type("InterfaceStatus", (), {"isup": False})()).isup),
+            "is_up": bool(interface_status.isup) if interface_status is not None else False,
         })
     return {"interfaces": interfaces, "available": True, "timestamp": timestamp()}
 
