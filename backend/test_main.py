@@ -122,3 +122,10 @@ def test_ai_chat_limits_message_count_and_size():
 
 def test_unknown_route_returns_404():
     assert client.get("/api/v1/not-a-route").status_code == 404
+
+
+def test_ai_model_is_restricted_to_documented_ids(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_MODEL", "unexpected-model")
+    assert main.configured_ai_model() == "deepseek-flash"
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+    assert main.configured_ai_model() == "deepseek-v4-pro"
