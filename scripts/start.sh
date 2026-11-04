@@ -7,13 +7,13 @@ if ! command -v python3 >/dev/null 2>&1; then echo "Python 3 is required. Run ./
 if [[ ! -d "$ROOT/backend/.venv" ]]; then python3 -m venv "$ROOT/backend/.venv"; fi
 "$ROOT/backend/.venv/bin/python" -m pip install --upgrade pip
 "$ROOT/backend/.venv/bin/pip" install -r "$ROOT/backend/requirements.txt"
-if [[ -f "$RUNTIME/api.pid" ]] && kill -0 "$(cat "$RUNTIME/api.pid")" 2>/dev/null; then
-  echo "LinuxCore API already appears to be running (PID $(cat "$RUNTIME/api.pid"))."
+if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/v1/health >/dev/null; then
+  echo "LinuxCore API is already responding."
 else
   (cd "$ROOT/backend"; nohup "$ROOT/backend/.venv/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid")
 fi
-if [[ -f "$RUNTIME/web.pid" ]] && kill -0 "$(cat "$RUNTIME/web.pid")" 2>/dev/null; then
-  echo "Dashboard already appears to be running (PID $(cat "$RUNTIME/web.pid"))."
+if curl --fail --silent --max-time 1 http://127.0.0.1:8080/ >/dev/null; then
+  echo "Dashboard is already responding."
 else
   nohup python3 -m http.server 8080 --directory "$ROOT/frontend" --bind 127.0.0.1 >"$RUNTIME/web.log" 2>&1 &
   echo $! >"$RUNTIME/web.pid"
