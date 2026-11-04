@@ -17,7 +17,7 @@ fi
 if [[ -f "$RUNTIME/api.pid" ]] && kill -0 "$(cat "$RUNTIME/api.pid")" 2>/dev/null; then
   echo "LinuxCore API already appears to be running (PID $(cat "$RUNTIME/api.pid"))."
 else
-  (cd "$ROOT/backend" && nohup "$ROOT/backend/.venv/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid")
+  (cd "$ROOT/backend"; nohup "$ROOT/backend/.venv/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid")
 fi
 if [[ -f "$RUNTIME/web.pid" ]] && kill -0 "$(cat "$RUNTIME/web.pid")" 2>/dev/null; then
   echo "Dashboard already appears to be running (PID $(cat "$RUNTIME/web.pid"))."
