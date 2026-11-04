@@ -7,13 +7,6 @@ if ! command -v python3 >/dev/null 2>&1; then echo "Python 3 is required. Run ./
 if [[ ! -d "$ROOT/backend/.venv" ]]; then python3 -m venv "$ROOT/backend/.venv"; fi
 "$ROOT/backend/.venv/bin/python" -m pip install --upgrade pip
 "$ROOT/backend/.venv/bin/pip" install -r "$ROOT/backend/requirements.txt"
-ENV_FILE="$ROOT/backend/.env"
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
-fi
 if [[ -f "$RUNTIME/api.pid" ]] && kill -0 "$(cat "$RUNTIME/api.pid")" 2>/dev/null; then
   echo "LinuxCore API already appears to be running (PID $(cat "$RUNTIME/api.pid"))."
 else
