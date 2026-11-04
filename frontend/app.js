@@ -13,8 +13,61 @@ function toast(message){const el=document.getElementById("toast");el.textContent
 document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en"?"ar":"en";localStorage.setItem("linuxcore-lang",lang);applyLanguage()});
 document.getElementById("refreshBtn").addEventListener("click",()=>{loadMetrics(true)});
 document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page,btn)));
-function navigate(page,button){document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));if(button)button.classList.add("active");const ai=page==="ai";document.getElementById("aiWorkspace").hidden=!ai;[".page-head",".notice",".metric-grid",".content-grid",".footer"].forEach(selector=>document.querySelector(selector).hidden=ai);document.getElementById("pageTitle").dataset.page=ai?"ai":page;document.getElementById("pageTitle").textContent=ai?t("ai"):(translations[lang][page]||page);if(ai)checkAIStatus();else if(page!=="overview")toast(lang==="ar"?"القسم ده هيتفعل بعد توصيل بيئة Linux":"This module will activate after the Linux host is connected")}
+function navigate(page,button){
+ document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+ if(button)button.classList.add("active");
+ const ai=page==="ai",module=page!=="overview"&&!ai;
+ document.getElementById("aiWorkspace").hidden=!ai;
+ document.getElementById("moduleWorkspace").hidden=!module;
+ [".page-head",".notice",".metric-grid",".content-grid"].forEach(selector=>document.querySelector(selector).hidden=ai||module);
+ document.querySelector(".footer").hidden=ai;
+ document.getElementById("pageTitle").dataset.page=ai?"ai":page;
+ document.getElementById("pageTitle").textContent=ai?t("ai"):(translations[lang][page]||page);
+ if(ai)checkAIStatus();
+ if(module)renderModule(page);
+}
 document.querySelectorAll("[data-go]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate("services",document.querySelector('[data-page="services"]'))}));
+function moduleNode(tag,cls,content){const el=document.createElement(tag);if(cls)el.className=cls;if(content!==undefined)el.textContent=content;return el}
+function moduleTable(headers,rows){
+ const table=moduleNode("table","module-table"),thead=moduleNode("thead"),tr=moduleNode("tr");
+ headers.forEach(h=>tr.append(moduleNode("th","",h)));thead.append(tr);table.append(thead);
+ const tbody=moduleNode("tbody");
+ rows.forEach(row=>{const line=moduleNode("tr");row.forEach(value=>line.append(moduleNode("td","",String(value??"—"))));tbody.append(line)});
+ table.append(tbody);return table;
+}
+function moduleNotice(text){const el=moduleNode("div","module-notice",text);document.getElementById("moduleContent").append(el)}
+async function renderModule(page){
+ const ar=lang==="ar",content=document.getElementById("moduleContent");
+ content.replaceChildren();
+ const titles={services:ar?"الخدمات":"Services",storage:ar?"التخزين":"Storage",containers:ar?"الحاويات":"Containers",terminal:ar?"الطرفية":"Terminal",security:ar?"الأمان":"Security",settings:ar?"الإعدادات":"Settings"};
+ const descriptions={services:ar?"اكتشاف الخدمات يعتمد على مدير التشغيل الموجود في توزيعة Linux.":"Service discovery depends on the init system available in the Linux distro.",storage:ar?"أنظمة الملفات ونقاط الربط التي يراها LinuxCore.":"Filesystems and mount points visible to LinuxCore.",containers:ar?"لن نفترض وجود Docker أو Podman قبل فحص البيئة الفعلية.":"Docker or Podman availability will not be assumed before checking the target environment.",terminal:ar?"الطرفية غير مفعلة حفاظًا على أمان لوحة التحكم.":"The terminal is intentionally disabled to keep the dashboard safe.",security:ar?"حدود الأمان الحالية للمشروع.":"Current security boundaries for this project.",settings:ar?"حالة التكامل والإعدادات المحلية.":"Integration status and local configuration."};
+ document.getElementById("moduleTitle").textContent=titles[page]||page;
+ document.getElementById("moduleDescription").textContent=descriptions[page]||"";
+ const refresh=document.getElementById("moduleRefresh");refresh.textContent=ar?"تحديث":"Refresh";refresh.onclick=()=>renderModule(page);
+ if(page==="terminal"){moduleNotice(ar?"الوصول للطرفية غير متاح. لا توجد واجهة لتنفيذ أوامر shell، ولن نضيفها قبل تصميم صلاحيات ومصادقة وعزل مناسب.":"Terminal access is unavailable. No shell execution endpoint exists; it will remain disabled until proper authentication, permissions and isolation are designed.");return}
+ if(page==="services"){moduleNotice(ar?"تكامل اكتشاف الخدمات مؤجل لحين معرفة مدير التشغيل الفعلي داخل Linux (systemd أو OpenRC أو غيره).":"Service discovery is pending until the target Linux init system (systemd, OpenRC, or another manager) is identified.");return}
+ if(page==="containers"){moduleNotice(ar?"اكتشاف الحاويات مؤجل. لن نفترض أن Docker أو Podman يعملان داخل بيئة Linux بدون Root على الهاتف.":"Container discovery is pending. Docker or Podman will not be assumed to work inside the phone's rootless Linux environment.");return}
+ if(page==="security"){
+  [["API binding",ar?"127.0.0.1 فقط":"127.0.0.1 only"],["System access",ar?"قراءة فقط":"Read-only"],["AI permissions",ar?"اقتراح وتحليل فقط":"Advisory only"],["Remote pairing",ar?"غير منفذ":"Not implemented"],["Shell execution",ar?"غير متاح":"Unavailable"]].forEach(([k,v])=>{const row=moduleNode("div","module-stat");row.append(moduleNode("b","",k),moduleNode("span","",v));content.append(row)});return;
+ }
+ if(page==="settings"){
+  try{const r=await fetch("http://127.0.0.1:8000/api/v1/ai/status");const d=await r.json();[["AI provider","DeepSeek"],["Model",d.model],["API key",d.configured?(ar?"مُعد":"Configured"):(ar?"غير مُعد":"Not configured")],["AI mode",d.mode]].forEach(([k,v])=>{const row=moduleNode("div","module-stat");row.append(moduleNode("b","",k),moduleNode("span","",String(v)));content.append(row)})}
+  catch{moduleNotice(ar?"تعذر الاتصال بالـ Backend المحلي.":"Could not reach the local backend.")}
+  moduleNotice(ar?"يُحفظ مفتاح DeepSeek في backend/.env فقط، ولا يوضع في ملفات الواجهة أو GitHub.":"Store the DeepSeek key only in backend/.env, never in frontend files or GitHub.");return;
+ }
+ const endpoints={storage:"storage",processes:"processes",network:"network"};
+ const endpoint=endpoints[page];
+ if(!endpoint){moduleNotice(ar?"هذا القسم غير متاح.":"This section is unavailable.");return}
+ try{
+  const response=await fetch("http://127.0.0.1:8000/api/v1/"+endpoint,{cache:"no-store"});
+  if(!response.ok)throw new Error("API");
+  const data=await response.json();
+  if(page==="storage")content.append(moduleTable([ar?"نقطة الربط":"Mount",ar?"نظام الملفات":"Filesystem",ar?"الإجمالي GB":"Total GB",ar?"المستخدم GB":"Used GB",ar?"المتاح GB":"Free GB",ar?"الاستخدام %":"Usage %"],data.items.map(x=>[x.mountpoint,x.filesystem,x.total_gb,x.used_gb,x.free_gb,x.percent+"%"])));
+  if(page==="processes")content.append(moduleTable([ar?"العملية":"Process","PID",ar?"الحالة":"Status",ar?"استهلاك الذاكرة":"Memory %"],data.items.map(x=>[x.name,x.pid,x.status,x.memory_percent+"%"])));
+  if(page==="network")content.append(moduleTable([ar?"الواجهة":"Interface",ar?"الحالة":"Link",ar?"استقبال MB":"Received MB",ar?"إرسال MB":"Sent MB",ar?"الحزم المستلمة":"RX packets",ar?"الحزم المرسلة":"TX packets"],data.interfaces.map(x=>[x.name,x.is_up?(ar?"نشط":"Up"):(ar?"متوقف":"Down"),(x.bytes_recv/1048576).toFixed(2),(x.bytes_sent/1048576).toFixed(2),x.packets_recv,x.packets_sent])));
+  if(!data.items?.length&&!data.interfaces?.length)moduleNotice(ar?"لا توجد بيانات متاحة في البيئة الحالية.":"No data is available in the current environment.");
+ }catch{moduleNotice(ar?"السيرفر غير متصل. شغّل LinuxCore Backend لعرض البيانات الحقيقية.":"Host is not connected. Start the LinuxCore backend to load live data.");}
+}
 function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString(lang==="ar"?"ar-EG":"en-GB")}
 applyLanguage();tick();setInterval(tick,1000);
 function setMetric(id,value){const n=Math.max(0,Math.min(100,Number(value)||0));document.getElementById(id+"Val").textContent=Math.round(n);document.getElementById(id+"Bar").style.width=n+"%"}
