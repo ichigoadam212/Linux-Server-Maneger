@@ -91,8 +91,14 @@ async function loadMetrics(showToast=false){
   document.getElementById("hostPlatform").textContent=d.platform||"Linux";
   document.getElementById("hostUptime").textContent=formatUptime(d.uptime_seconds);
   const now=Date.now();
-  if(previousNetwork){const seconds=(now-previousNetwork.time)/1000;document.getElementById("downVal").innerHTML=rate(d.network_bytes_recv,previousNetwork.recv,seconds).toFixed(2)+' <small>MB/s</small>';document.getElementById("upVal").innerHTML=rate(d.network_bytes_sent,previousNetwork.sent,seconds).toFixed(2)+' <small>MB/s</small>'}
-  previousNetwork={time:now,recv:d.network_bytes_recv,sent:d.network_bytes_sent};
+  if(d.network_available&&d.network_bytes_recv!==null&&d.network_bytes_sent!==null){
+   if(previousNetwork){const seconds=(now-previousNetwork.time)/1000;document.getElementById("downVal").innerHTML=rate(d.network_bytes_recv,previousNetwork.recv,seconds).toFixed(2)+' <small>MB/s</small>';document.getElementById("upVal").innerHTML=rate(d.network_bytes_sent,previousNetwork.sent,seconds).toFixed(2)+' <small>MB/s</small>'}
+   previousNetwork={time:now,recv:d.network_bytes_recv,sent:d.network_bytes_sent};
+  }else{
+   previousNetwork=null;
+   document.getElementById("downVal").textContent="N/A";
+   document.getElementById("upVal").textContent="N/A";
+  }
   document.querySelector(".notice-status").textContent="LIVE";document.querySelector(".notice-status").style.color="var(--green)";document.querySelector(".notice").style.borderColor="#28694f88";document.querySelector(".notice-icon").textContent="✓";document.querySelector(".notice b").textContent=lang==="ar"?"متصل بالسيرفر":"Host connected";document.querySelector(".notice span:nth-child(2)").lastChild.textContent=lang==="ar"?" المؤشرات مأخوذة من خادم Linux المتصل.":" Live metrics from connected Linux host.";document.querySelector(".pulse").style.background="var(--green)";document.querySelector(".connection b").textContent=lang==="ar"?"متصل":"Connected";document.querySelector(".connection small").textContent=d.hostname;
   if(showToast)toast(lang==="ar"?"تم تحديث بيانات السيرفر":"Host metrics updated");
  }catch(error){document.querySelector(".notice-status").textContent="NOT CONNECTED";document.querySelector(".notice-status").style.color="var(--amber)";document.querySelector(".pulse").style.background="var(--amber)";document.querySelector(".connection b").textContent=lang==="ar"?"وضع تجريبي":"Demo mode";document.querySelector(".connection small").textContent=lang==="ar"?"في انتظار اتصال السيرفر":"Awaiting server connection";document.getElementById("hostName").textContent="—";document.getElementById("hostPlatform").textContent="—";document.getElementById("hostUptime").textContent="—";if(showToast)toast(lang==="ar"?"السيرفر غير متصل؛ البيانات تجريبية":"Host unavailable; showing preview data")}
