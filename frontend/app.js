@@ -1,12 +1,46 @@
 const translations={en:{workspace:"WORKSPACE",overview:"Overview",services:"Services",storage:"Storage",containers:"Containers",terminal:"Terminal",security:"Security",demoMode:"Demo mode",awaiting:"Awaiting server connection",settings:"Settings",systemStandby:"SYSTEM STANDBY",controlCenter:"CONTROL CENTER",overviewTitle:"Server overview",overviewSub:"Monitor your infrastructure from one command center.",refresh:"Refresh",preview:"Preview environment",previewText:"Metrics below are sample data until a Linux host is connected.",notConnected:"NOT CONNECTED",cpuUsage:"CPU USAGE",memory:"MEMORY",processorLoad:"Processor load",memoryUsed:"Memory used",diskUsed:"Disk used",network:"NETWORK",download:"↓ DOWNLOAD",upload:"↑ UPLOAD",interface:"Interface",systemHealth:"SYSTEM HEALTH",serviceStatus:"Service status",viewAll:"VIEW ALL ↗",running:"Running",idle:"Idle",monitoring:"MONITORING",recentActivity:"Recent activity",backupCompleted:"Backup completed",serviceRestarted:"Service restarted",securityScan:"Security scan finished",noIssues:"No issues detected",demoActivity:"Illustrative activity · not live system events",footerNote:"Designed for secure, local-first server administration."},ar:{workspace:"مساحة العمل",overview:"نظرة عامة",services:"الخدمات",storage:"التخزين",containers:"الحاويات",terminal:"الطرفية",security:"الأمان",demoMode:"وضع تجريبي",awaiting:"في انتظار اتصال السيرفر",settings:"الإعدادات",systemStandby:"النظام في وضع الاستعداد",controlCenter:"مركز التحكم",overviewTitle:"نظرة عامة على السيرفر",overviewSub:"راقب البنية التحتية من مركز تحكم واحد.",refresh:"تحديث",preview:"بيئة معاينة",previewText:"المؤشرات التالية تجريبية حتى يتم توصيل خادم Linux.",notConnected:"غير متصل",cpuUsage:"استخدام المعالج",memory:"الذاكرة",processorLoad:"حمل المعالج",memoryUsed:"الذاكرة المستخدمة",diskUsed:"المساحة المستخدمة",network:"الشبكة",download:"↓ تنزيل",upload:"↑ رفع",interface:"واجهة الاتصال",systemHealth:"حالة النظام",serviceStatus:"حالة الخدمات",viewAll:"عرض الكل ↗",running:"يعمل",idle:"خامل",monitoring:"المراقبة",recentActivity:"النشاط الأخير",backupCompleted:"اكتمل النسخ الاحتياطي",serviceRestarted:"أُعيد تشغيل الخدمة",securityScan:"اكتمل فحص الأمان",noIssues:"لم يتم اكتشاف مشكلات",demoActivity:"نشاط توضيحي · ليس أحداثًا مباشرة",footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن."}};
 let lang=localStorage.getItem("linuxcore-lang")||"en";
+let previousNetwork=null;
 function applyLanguage(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.dataset.i18n;if(translations[lang][k])el.textContent=translations[lang][k]});document.getElementById("langBtn").textContent=lang==="en"?"عربي":"English";document.getElementById("pageTitle").textContent=translations[lang].overview}
 function toast(message){const el=document.getElementById("toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
 document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en"?"ar":"en";localStorage.setItem("linuxcore-lang",lang);applyLanguage()});
-document.getElementById("refreshBtn").addEventListener("click",()=>{document.getElementById("clock").textContent=new Date().toLocaleTimeString();toast(lang==="ar"?"تم تحديث بيانات المعاينة":"Preview data refreshed")});
-document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));btn.classList.add("active");const p=btn.dataset.page;const labels={overview:"overview",services:"services",storage:"storage",containers:"containers",terminal:"terminal",security:"security",settings:"settings"};document.getElementById("pageTitle").textContent=translations[lang][labels[p]]||p; if(p!=="overview")toast(lang==="ar"?"القسم ده ضمن مراحل التطوير القادمة":"This section is planned for a future build")}));
+document.getElementById("refreshBtn").addEventListener("click",()=>{loadMetrics(true)});
+document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));btn.classList.add("active");const p=btn.dataset.page;const labels={overview:"overview",services:"services",storage:"storage",containers:"containers",terminal:"terminal",security:"security",settings:"settings"};document.getElementById("pageTitle").textContent=translations[lang][labels[p]]||p;if(p!=="overview")toast(lang==="ar"?"القسم ده هيتفعل بعد توصيل بيئة Linux":"This module will activate after the Linux host is connected")}));
 document.querySelectorAll("[data-go]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();document.querySelector('[data-page="services"]').click()}));
-function tick(){const now=new Date();document.getElementById("clock").textContent=now.toLocaleTimeString(lang==="ar"?"ar-EG":"en-GB");}
+function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString(lang==="ar"?"ar-EG":"en-GB")}
 applyLanguage();tick();setInterval(tick,1000);
-async function loadMetrics(){try{const res=await fetch("http://127.0.0.1:8000/api/v1/metrics",{signal:AbortSignal.timeout(1200)});if(!res.ok)return;const d=await res.json();for(const [id,value] of [["cpu",d.cpu_percent],["ram",d.memory_percent],["disk",d.disk_percent]]){document.getElementById(id+"Val").textContent=Math.round(value);document.getElementById(id+"Bar").style.width=value+"%"}document.getElementById("ramMeta").textContent=d.memory_used_gb+" / "+d.memory_total_gb+" GB";document.getElementById("diskMeta").textContent=d.disk_used_gb+" / "+d.disk_total_gb+" GB";document.querySelector(".notice-status").textContent="LIVE";document.querySelector(".notice-status").style.color="var(--green)";document.querySelector(".notice").style.borderColor="#28694f88";document.querySelector(".notice-icon").textContent="✓";document.querySelector(".notice b").textContent=lang==="ar"?"متصل بالسيرفر":"Host connected";document.querySelector(".notice span:nth-child(2)").lastChild.textContent=lang==="ar"?" المؤشرات مأخوذة من خادم Linux المتصل.":" Live metrics from connected Linux host."}catch(e){/* Demo mode remains active when the local API is unavailable. */}}
-loadMetrics();setInterval(loadMetrics,10000);
+function setMetric(id,value){const n=Math.max(0,Math.min(100,Number(value)||0));document.getElementById(id+"Val").textContent=Math.round(n);document.getElementById(id+"Bar").style.width=n+"%"}
+function rate(bytes,oldBytes,seconds){if(oldBytes===null||seconds<=0)return 0;return Math.max(0,(bytes-oldBytes)/seconds/1024/1024)}
+async function loadMetrics(showToast=false){
+ const button=document.getElementById("refreshBtn");
+ try{
+  const response=await fetch("http://127.0.0.1:8000/api/v1/metrics",{cache:"no-store",signal:AbortSignal.timeout(2500)});
+  if(!response.ok)throw new Error("API unavailable");
+  const d=await response.json();
+  setMetric("cpu",d.cpu_percent);setMetric("ram",d.memory_percent);setMetric("disk",d.disk_percent);
+  document.getElementById("cpuMeta").textContent=d.cpu_count+" cores";
+  document.getElementById("ramMeta").textContent=d.memory_used_gb+" / "+d.memory_total_gb+" GB";
+  document.getElementById("diskMeta").textContent=d.disk_used_gb+" / "+d.disk_total_gb+" GB";
+  const now=Date.now();
+  if(previousNetwork){const seconds=(now-previousNetwork.time)/1000;document.getElementById("downVal").innerHTML=rate(d.network_bytes_recv,previousNetwork.recv,seconds).toFixed(2)+' <small>MB/s</small>';document.getElementById("upVal").innerHTML=rate(d.network_bytes_sent,previousNetwork.sent,seconds).toFixed(2)+' <small>MB/s</small>'}
+  previousNetwork={time:now,recv:d.network_bytes_recv,sent:d.network_bytes_sent};
+  document.querySelector(".notice-status").textContent="LIVE";
+  document.querySelector(".notice-status").style.color="var(--green)";
+  document.querySelector(".notice").style.borderColor="#28694f88";
+  document.querySelector(".notice-icon").textContent="✓";
+  document.querySelector(".notice b").textContent=lang==="ar"?"متصل بالسيرفر":"Host connected";
+  document.querySelector(".notice span:nth-child(2)").lastChild.textContent=lang==="ar"?" المؤشرات مأخوذة من خادم Linux المتصل.":" Live metrics from connected Linux host.";
+  document.querySelector(".pulse").style.background="var(--green)";
+  document.querySelector(".connection b").textContent=lang==="ar"?"متصل":"Connected";
+  document.querySelector(".connection small").textContent=d.hostname;
+  if(showToast)toast(lang==="ar"?"تم تحديث بيانات السيرفر":"Host metrics updated");
+ }catch(error){
+  document.querySelector(".notice-status").textContent="NOT CONNECTED";
+  document.querySelector(".notice-status").style.color="var(--amber)";
+  document.querySelector(".pulse").style.background="var(--amber)";
+  document.querySelector(".connection b").textContent=lang==="ar"?"وضع تجريبي":"Demo mode";
+  document.querySelector(".connection small").textContent=lang==="ar"?"في انتظار اتصال السيرفر":"Awaiting server connection";
+  if(showToast)toast(lang==="ar"?"السيرفر غير متصل؛ البيانات تجريبية":"Host unavailable; showing preview data");
+ }
+}
+loadMetrics();setInterval(()=>loadMetrics(),10000);
