@@ -17,6 +17,7 @@ document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en
 document.getElementById("refreshBtn").addEventListener("click",()=>{loadMetrics(true)});
 document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page,btn)));
 function navigate(page,button){
+ currentPage=page;
  document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
  if(button)button.classList.add("active");
  const ai=page==="ai",module=page!=="overview"&&!ai;
@@ -28,6 +29,7 @@ function navigate(page,button){
  document.getElementById("pageTitle").textContent=ai?t("ai"):(translations[lang][page]||page);
  if(ai)checkAIStatus();
  if(module)renderModule(page);
+ if(page==="overview")loadMetrics();
 }
 document.querySelectorAll("[data-go]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate("services",document.querySelector('[data-page="services"]'))}));
 function moduleNode(tag,cls,content){const el=document.createElement(tag);if(cls)el.className=cls;if(content!==undefined)el.textContent=content;return el}
