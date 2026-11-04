@@ -22,7 +22,7 @@ function navigate(page,button){
  const ai=page==="ai",module=page!=="overview"&&!ai;
  document.getElementById("aiWorkspace").hidden=!ai;
  document.getElementById("moduleWorkspace").hidden=!module;
- [".page-head",".notice",".metric-grid",".content-grid"].forEach(selector=>document.querySelector(selector).hidden=ai||module);
+ [".page-head",".notice",".metric-grid",".system-facts",".content-grid"].forEach(selector=>document.querySelector(selector).hidden=ai||module);
  document.querySelector(".footer").hidden=ai;
  document.getElementById("pageTitle").dataset.page=ai?"ai":page;
  document.getElementById("pageTitle").textContent=ai?t("ai"):(translations[lang][page]||page);
