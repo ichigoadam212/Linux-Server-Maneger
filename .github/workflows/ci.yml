@@ -32,5 +32,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Validate Linux setup scripts
+        run: bash -n ../scripts/*.sh
+
       - name: Run API tests
         run: pytest -q
