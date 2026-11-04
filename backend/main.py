@@ -31,6 +31,15 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
 
+def safe_net_io_counters(pernic: bool = False):
+    """Return network counters when /proc access is available in this Linux environment."""
+    try:
+        return psutil.net_io_counters(pernic=pernic)
+    except (PermissionError, OSError):
+        # Rootless Android/PRoot environments may restrict /proc/net/dev.
+        return None
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)
@@ -70,7 +79,7 @@ def health():
 def metrics():
     memory = psutil.virtual_memory()
     disk = shutil.disk_usage("/")
-    net = psutil.net_io_counters()
+    net = safe_net_io_counters()
     return {
         "hostname": platform.node(),
         "platform": platform.platform(),
@@ -83,8 +92,9 @@ def metrics():
         "disk_percent": round(disk.used / disk.total * 100, 1) if disk.total else 0,
         "disk_used_gb": round(disk.used / (1024 ** 3), 2),
         "disk_total_gb": round(disk.total / (1024 ** 3), 2),
-        "network_bytes_sent": net.bytes_sent,
-        "network_bytes_recv": net.bytes_recv,
+        "network_bytes_sent": net.bytes_sent if net is not None else None,
+        "network_bytes_recv": net.bytes_recv if net is not None else None,
+        "network_available": net is not None,
         "timestamp": timestamp(),
     }
 
@@ -131,9 +141,20 @@ def processes():
 
 @app.get("/api/v1/network")
 def network():
-    counters = psutil.net_io_counters(pernic=True) or {}
+    counters = safe_net_io_counters(pernic=True)
+    if counters is None:
+        return {
+            "interfaces": [],
+            "available": False,
+            "reason": "Network counters are restricted by the current Linux environment.",
+            "timestamp": timestamp(),
+        }
+
     interfaces = []
-    stats = psutil.net_if_stats()
+    try:
+        stats = psutil.net_if_stats()
+    except (PermissionError, OSError):
+        stats = {}
     for name, counter in counters.items():
         interfaces.append({
             "name": name,
@@ -141,9 +162,9 @@ def network():
             "bytes_recv": counter.bytes_recv,
             "packets_sent": counter.packets_sent,
             "packets_recv": counter.packets_recv,
-            "is_up": bool((stats.get(name) or {}).isup),
+            "is_up": bool((stats.get(name) or type("InterfaceStatus", (), {"isup": False})()).isup),
         })
-    return {"interfaces": interfaces, "timestamp": timestamp()}
+    return {"interfaces": interfaces, "available": True, "timestamp": timestamp()}
 
 
 @app.get("/api/v1/ai/status")
