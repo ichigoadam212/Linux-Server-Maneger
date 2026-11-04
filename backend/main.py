@@ -121,7 +121,6 @@ def processes():
                 "pid": info.get("pid"),
                 "name": info.get("name") or "unknown",
                 "status": info.get("status") or "unknown",
-                "user": info.get("username") or "unknown",
                 "memory_percent": round(info.get("memory_percent") or 0, 2),
             })
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
