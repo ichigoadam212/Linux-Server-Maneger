@@ -17,7 +17,8 @@ The website and backend bind to `127.0.0.1` by default. Do not expose this devel
 
 ## What is implemented
 
-- Responsive cyber dashboard with Arabic/English interface and RTL support.\n- Live overview cards for hostname, platform and uptime when the local host is connected.
+- Responsive cyber dashboard with Arabic/English interface and RTL support.
+- Live overview cards for hostname, platform and uptime when the local host is connected.
 - FastAPI health, metrics, storage, process and network endpoints.
 - Optional DeepSeek chat assistant through a server-side proxy.
 - Explicit opt-in for sharing a limited aggregate host snapshot with DeepSeek.
@@ -108,7 +109,8 @@ These items cannot be honestly completed or verified before the target distro ex
 
 ## Roadmap
 
-- [x] Website dashboard and Arabic/English UI\n- [x] Live host identity and uptime overview
+- [x] Website dashboard and Arabic/English UI
+- [x] Live host identity and uptime overview
 - [x] Read-only host monitoring API
 - [x] Optional DeepSeek assistant
 - [x] Privacy-limited, opt-in AI host context
