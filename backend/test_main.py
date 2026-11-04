@@ -55,6 +55,7 @@ def test_process_endpoint_does_not_return_command_lines():
     for item in payload["items"]:
         assert "cmdline" not in item
         assert "environ" not in item
+        assert "user" not in item
 
 
 def test_network_endpoint_shape():
