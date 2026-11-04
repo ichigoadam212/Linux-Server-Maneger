@@ -1,17 +1,21 @@
 from datetime import datetime, timezone
 import os
 import platform
+from pathlib import Path
 import shutil
 import time
 from typing import Literal
 
 import httpx
 import psutil
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).with_name(".env"))
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="LinuxCore Server Manager API", version="0.3.0")
+app = FastAPI(title="LinuxCore Server Manager API", version="0.4.0")
 
 # Local development only. Remote access requires authentication, TLS and auditing.
 app.add_middleware(
@@ -46,7 +50,7 @@ def configured_ai_model():
 def root():
     return {
         "name": "LinuxCore Server Manager API",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "mode": "read-only",
         "docs": "/docs",
     }
