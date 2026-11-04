@@ -32,6 +32,7 @@ The website and backend bind to `127.0.0.1` by default. Do not expose this devel
     backend/                  FastAPI service and tests
     scripts/                  Linux setup and lifecycle scripts
     docs/                     Deployment and shared-host notes
+      SHARED_LINUX_ARCHITECTURE.md
     .github/workflows/        CI workflow
 
 ## First setup in a Debian/Ubuntu Linux environment
