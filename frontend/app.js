@@ -62,7 +62,8 @@ async function renderModule(page){
  }
  if(page==="settings"){
   try{const r=await fetch("http://127.0.0.1:8000/api/v1/ai/status",{cache:"no-store",signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error("API");const d=await r.json();if(requestId!==moduleRequestId||currentPage!==page)return;[["AI provider","DeepSeek"],["Model",d.model],["API key",d.configured?(ar?"مُعد":"Configured"):(ar?"غير مُعد":"Not configured")],["AI mode",d.mode]].forEach(([k,v])=>{const row=moduleNode("div","module-stat");row.append(moduleNode("b","",k),moduleNode("span","",String(v)));content.append(row)})}
-  catch{moduleNotice(ar?"تعذر الاتصال بالـ Backend المحلي.":"Could not reach the local backend.")}
+  catch{if(requestId===moduleRequestId&&currentPage===page)moduleNotice(ar?"تعذر الاتصال بالـ Backend المحلي.":"Could not reach the local backend.")}
+  if(requestId!==moduleRequestId||currentPage!==page)return;
   moduleNotice(ar?"يُحفظ مفتاح DeepSeek في backend/.env فقط، ولا يوضع في ملفات الواجهة أو GitHub.":"Store the DeepSeek key only in backend/.env, never in frontend files or GitHub.");return;
  }
  const endpoints={storage:"storage",processes:"processes",network:"network"};
