@@ -16,7 +16,7 @@ function t(key){return translations[lang][key]||key}
 function applyLanguage(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.dataset.i18n;if(translations[lang][k])el.textContent=translations[lang][k]});document.getElementById("langBtn").textContent=lang==="en"?"عربي":"English";document.getElementById("langBtn").setAttribute("aria-label",lang==="en"?"Switch language":"تغيير اللغة");document.getElementById("systemStatus").textContent=hostConnected?t("systemLive"):t("systemStandby");document.getElementById("pageTitle").textContent=currentPage==="ai"?t("ai"):(translations[lang][currentPage]||currentPage);
  if(currentPage!=="overview"&&currentPage!=="ai")renderModule(currentPage);document.getElementById("aiInput").placeholder=t("aiPlaceholder");document.getElementById("aiSend").textContent=t("aiSend");document.getElementById("aiContextLabel").textContent=t("aiContext");document.getElementById("aiPrivacy").textContent=t("aiPrivacy");document.getElementById("aiTitle").textContent=t("aiTitle");document.getElementById("aiSub").textContent=t("aiSub")}
 function toast(message){const el=document.getElementById("toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
-document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en"?"ar":"en";try{localStorage.setItem("linuxcore-lang",lang)}catch{}applyLanguage()});
+document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en"?"ar":"en";try{localStorage.setItem("linuxcore-lang",lang)}catch{}applyLanguage();loadMetrics()});
 document.getElementById("refreshBtn").addEventListener("click",()=>{loadMetrics(true)});
 document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page,btn)));
 function navigate(page,button){
@@ -75,7 +75,7 @@ async function renderModule(page){
   if(requestId!==moduleRequestId||currentPage!==page)return;
   if(page==="storage")content.append(moduleTable([ar?"نقطة الربط":"Mount",ar?"نظام الملفات":"Filesystem",ar?"الإجمالي GB":"Total GB",ar?"المستخدم GB":"Used GB",ar?"المتاح GB":"Free GB",ar?"الاستخدام %":"Usage %"],data.items.map(x=>[x.mountpoint,x.filesystem,x.total_gb,x.used_gb,x.free_gb,x.percent+"%"])));
   if(page==="processes")content.append(moduleTable([ar?"العملية":"Process","PID",ar?"الحالة":"Status",ar?"استهلاك الذاكرة":"Memory %"],data.items.map(x=>[x.name,x.pid,x.status,x.memory_percent+"%"])));
-  if(page==="network"&&data.available===false){moduleNotice(data.reason||(ar?"بيانات الشبكة غير متاحة في البيئة الحالية.":"Network counters are unavailable in this environment."));return}
+  if(page==="network"&&data.available===false){moduleNotice(ar?"عدادات الشبكة محجوبة بواسطة بيئة Linux الحالية.":(data.reason||"Network counters are unavailable in this environment."));return}
   if(page==="network")content.append(moduleTable([ar?"الواجهة":"Interface",ar?"الحالة":"Link",ar?"استقبال MB":"Received MB",ar?"إرسال MB":"Sent MB",ar?"الحزم المستلمة":"RX packets",ar?"الحزم المرسلة":"TX packets"],(Array.isArray(data.interfaces)?data.interfaces:[]).map(x=>[x.name,x.is_up?(ar?"نشط":"Up"):(ar?"متوقف":"Down"),(Number(x.bytes_recv||0)/1048576).toFixed(2),(Number(x.bytes_sent||0)/1048576).toFixed(2),x.packets_recv,x.packets_sent])));
   if(!(data.items?.length)&&!(data.interfaces?.length))moduleNotice(t("noData"));
  }catch{if(requestId===moduleRequestId&&currentPage===page)moduleNotice(ar?"السيرفر غير متصل. شغّل LinuxCore Backend لعرض البيانات الحقيقية.":"Host is not connected. Start the LinuxCore backend to load live data.");}
@@ -104,6 +104,7 @@ async function loadMetrics(showToast=false){
   message.textContent=connected?(lang==="ar"?"المؤشرات مأخوذة من خادم Linux المتصل.":"Live metrics from connected Linux host.") : t("previewText");
   live.textContent=connected?t("systemLive"):t("systemStandby");
   live.dataset.state=connected?"connected":"disconnected";
+  document.querySelector(".live-tag i").style.background=connected?"var(--green)":"var(--amber)";
   pulse.style.background=connected?"var(--green)":"var(--amber)";
   document.querySelector(".connection b").textContent=connected?(lang==="ar"?"متصل":"Connected"):t("demoMode");
   document.querySelector(".connection small").textContent=connected?(document.getElementById("hostName").textContent):(t("awaiting"));
@@ -137,7 +138,7 @@ async function loadMetrics(showToast=false){
    document.getElementById("upVal").textContent="N/A";
   }
   const networkInterface=document.getElementById("networkInterface");
-  networkInterface.textContent=d.network_available?(d.network_interface||"Available"):"N/A";
+  networkInterface.textContent=d.network_available?(d.network_interface||"—"):"N/A";
   setConnectionState(true);
   if(showToast)toast(lang==="ar"?"تم تحديث بيانات السيرفر":"Host metrics updated");
  }catch(error){
