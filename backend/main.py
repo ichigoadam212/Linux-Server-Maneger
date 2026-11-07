@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="LinuxCore Server Manager API", version="0.4.0")
+app = FastAPI(title="LinuxCore Server Manager API", version="0.5.0")
 
 # Local development only. Remote access requires authentication, TLS and auditing.
 app.add_middleware(
@@ -59,7 +59,7 @@ def configured_ai_model():
 def root():
     return {
         "name": "LinuxCore Server Manager API",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "mode": "read-only",
         "docs": "/docs",
     }
