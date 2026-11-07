@@ -24,7 +24,7 @@ def test_metrics_endpoint_shape_and_ranges():
         "hostname", "platform", "uptime_seconds", "cpu_percent", "cpu_count",
         "memory_percent", "memory_used_gb", "memory_total_gb", "disk_percent",
         "disk_used_gb", "disk_total_gb", "network_bytes_sent",
-        "network_bytes_recv", "timestamp",
+        "network_bytes_recv", "network_available", "timestamp",
     }
     assert expected.issubset(payload)
     assert 0 <= payload["cpu_percent"] <= 100
@@ -65,6 +65,16 @@ def test_network_endpoint_shape():
     assert isinstance(payload["interfaces"], list)
     for item in payload["interfaces"]:
         assert isinstance(item["is_up"], bool)
+
+
+def test_network_endpoint_reports_restricted_environment(monkeypatch):
+    monkeypatch.setattr(main, "safe_net_io_counters", lambda pernic=False: None)
+    response = client.get("/api/v1/network")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available"] is False
+    assert payload["interfaces"] == []
+    assert "reason" in payload
 
 
 def test_ai_status_does_not_expose_api_key(monkeypatch):
