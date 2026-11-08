@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080d18"><meta name="description" content="Local-first Linux server monitoring dashboard with Arabic and English interface."><title>LinuxCore | Server Manager</title>
   <!-- System font stacks keep the dashboard usable offline without third-party font requests. -->
-  <link rel="stylesheet" href="styles.css?v=0.6.0">
+  <link rel="stylesheet" href="styles.css?v=0.7.0">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -22,10 +22,11 @@
         <button class="nav-item" data-page="containers"><i>▣</i><span data-i18n="containers">Containers</span></button>
         <button class="nav-item" data-page="terminal"><i>⌘</i><span data-i18n="terminal">Terminal</span><small class="soon">DEMO</small></button>
         <button class="nav-item" data-page="security"><i>⬡</i><span data-i18n="security">Security</span></button>
+        <button class="nav-item" data-page="recovery"><i>↻</i><span data-i18n="recovery">Recovery</span></button>
         <button class="nav-item" data-page="ai"><i>✧</i><span data-i18n="ai">AI Assistant</span><small class="soon">AI</small></button>
 
       </nav>
-      <div class="side-bottom"><div class="connection"><span class="pulse"></span><span><b data-i18n="demoMode">Demo mode</b><small data-i18n="awaiting">Awaiting server connection</small></span></div><button class="nav-item" data-page="settings"><i>⚙</i><span data-i18n="settings">Settings</span></button><div class="version">LINUXCORE <span>v0.6.0</span></div></div>
+      <div class="side-bottom"><div class="connection"><span class="pulse"></span><span><b data-i18n="demoMode">Demo mode</b><small data-i18n="awaiting">Awaiting server connection</small></span></div><button class="nav-item" data-page="settings"><i>⚙</i><span data-i18n="settings">Settings</span></button><div class="version">LINUXCORE <span>v0.7.0</span></div></div>
     </aside>
     <main class="main" id="main-content" tabindex="-1">
       <header class="topbar"><div class="crumb"><span data-i18n="workspace">WORKSPACE</span><b>/</b><strong id="pageTitle">Overview</strong></div><div class="top-actions"><span class="live-tag"><i></i><span id="systemStatus" data-i18n="systemStandby" aria-live="polite">SYSTEM STANDBY</span></span><button id="langBtn" class="lang-btn" type="button" aria-label="Switch language">عربي</button><span class="avatar" aria-hidden="true">A</span></div></header>
@@ -58,8 +59,8 @@
         </div>
         <aside class="ai-info"><h3>PRIVACY & CONTEXT</h3><label class="ai-check"><input type="checkbox" id="aiIncludeContext"><span id="aiContextLabel">Include aggregate host metrics in this request</span></label><p id="aiPrivacy">Only aggregate CPU, memory, disk, uptime and storage summary are shared. No process details or secrets.</p><div id="aiSetup" class="ai-setup">Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.</div></aside>
       </section>
-      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.6.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
+      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.7.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
     </main>
   </div>
-  <div id="toast" role="status"></div><script src="app.js?v=0.6.0" defer></script>
+  <div id="toast" role="status"></div><script src="app.js?v=0.7.0" defer></script>
 </body></html>
