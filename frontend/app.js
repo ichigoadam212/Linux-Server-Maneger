@@ -9,7 +9,7 @@ const translations = {
     hostConnected:"Host connected", preview:"Preview environment", previewText:"Live metrics appear when a Linux host is connected. No sample values are shown.",
     notConnected:"NOT CONNECTED", cpuUsage:"CPU USAGE", memory:"MEMORY", processorLoad:"Logical cores",
     memoryUsed:"Memory used", diskUsed:"Disk used", network:"NETWORK", download:"↓ DOWNLOAD", upload:"↑ UPLOAD",
-    interface:"Interface", controlCenter:"CONTROL CENTER", overviewTitle:"Server overview",
+    interface:"Interface", networkAggregate:"All interfaces", controlCenter:"CONTROL CENTER", overviewTitle:"Server overview",
     overviewSub:"Monitor your Linux environment from one command center.", refresh:"Refresh",
     systemHealth:"SYSTEM HEALTH", serviceStatus:"Service status", viewAll:"VIEW ALL ↗", monitoring:"MONITORING",
     recentActivity:"Recent activity", backupCompleted:"Backup completed", serviceRestarted:"Service restarted",
@@ -37,7 +37,7 @@ const translations = {
     hostConnected:"متصل بالسيرفر", preview:"بيئة معاينة", previewText:"ستظهر المؤشرات الحقيقية عند اتصال خادم Linux. لا يتم عرض أرقام تجريبية.",
     notConnected:"غير متصل", cpuUsage:"استخدام المعالج", memory:"الذاكرة", processorLoad:"الأنوية المنطقية",
     memoryUsed:"الذاكرة المستخدمة", diskUsed:"المساحة المستخدمة", network:"الشبكة", download:"↓ تنزيل", upload:"↑ رفع",
-    interface:"واجهة الاتصال", controlCenter:"مركز التحكم", overviewTitle:"نظرة عامة على السيرفر",
+    interface:"واجهة الاتصال", networkAggregate:"كل الواجهات", controlCenter:"مركز التحكم", overviewTitle:"نظرة عامة على السيرفر",
     overviewSub:"راقب بيئة Linux من مركز تحكم واحد.", refresh:"تحديث",
     systemHealth:"حالة النظام", serviceStatus:"حالة الخدمات", viewAll:"عرض الكل ↗", monitoring:"المراقبة",
     recentActivity:"النشاط الأخير", backupCompleted:"اكتمل النسخ الاحتياطي", serviceRestarted:"أُعيد تشغيل الخدمة",
@@ -229,7 +229,7 @@ async function loadMetrics(showToast) {
       setText("upVal", t("networkNA"));
     }
 
-    setText("networkInterface", data.network_available ? (data.network_interface || "—") : t("networkNA"));
+    setText("networkInterface", data.network_available ? (data.network_interface === "aggregate" ? t("networkAggregate") : (data.network_interface || "—")) : t("networkNA"));
     setConnectionState(true);
     if (showToast) toast(lang === "ar" ? "تم تحديث بيانات السيرفر" : "Host metrics updated");
   } catch (error) {
