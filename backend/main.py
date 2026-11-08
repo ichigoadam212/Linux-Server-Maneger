@@ -195,7 +195,7 @@ def root():
     return {
         "name": "LinuxCore Server Manager API",
         "version": "0.7.0",
-        "mode": "read-only",
+        "mode": "local-scoped-operations",
         "docs": "/docs",
     }
 
