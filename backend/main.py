@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 import os
 import platform
 from pathlib import Path
+import re
 import shutil
+import subprocess
 import time
 from typing import Literal
 
@@ -15,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="LinuxCore Server Manager API", version="0.6.0")
+app = FastAPI(title="LinuxCore Server Manager API", version="0.7.0")
 
 # Local development only. Remote access requires authentication, TLS and auditing.
 app.add_middleware(
@@ -40,6 +42,138 @@ def safe_net_io_counters(pernic: bool = False):
         return None
 
 
+
+SERVICE_UNIT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@:-]{0,127}\.service$")
+CONTAINER_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+TERMINAL_COMMANDS = {
+    "pwd": ["pwd"],
+    "system": ["uname", "-a"],
+    "storage": ["df", "-h", "/"],
+    "memory": ["free", "-h"],
+    "uptime": ["uptime"],
+    "processes": ["ps", "-eo", "pid,comm,%cpu,%mem", "--sort=-%cpu"],
+}
+
+
+class ServiceAction(BaseModel):
+    action: Literal["start", "stop", "restart"]
+
+
+class ContainerAction(BaseModel):
+    action: Literal["start", "stop", "restart"]
+
+
+class TerminalRequest(BaseModel):
+    command: Literal["pwd", "system", "storage", "memory", "uptime", "processes"]
+
+
+def run_fixed_command(argv: list[str], timeout: int = 8):
+    """Run a fixed argument vector; never invoke a shell or accept raw commands."""
+    try:
+        result = subprocess.run(
+            argv, capture_output=True, text=True, timeout=timeout, check=False,
+            env={**os.environ, "SYSTEMD_PAGER": "cat", "PAGER": "cat"},
+        )
+        return {
+            "returncode": result.returncode,
+            "stdout": (result.stdout or "")[-12000:],
+            "stderr": (result.stderr or "")[-3000:],
+        }
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"returncode": 127, "stdout": "", "stderr": str(exc)[:1000]}
+
+
+def user_systemctl():
+    path = shutil.which("systemctl")
+    if not path or os.geteuid() == 0:
+        return None
+    probe = run_fixed_command([path, "--user", "is-system-running"], timeout=4)
+    # "degraded" is still a usable user manager; "offline" and bus errors are not.
+    if probe["returncode"] not in (0, 1):
+        return None
+    if "Failed to connect" in probe["stderr"] or "No medium found" in probe["stderr"]:
+        return None
+    return path
+
+
+def list_user_services():
+    systemctl = user_systemctl()
+    if not systemctl:
+        return {"available": False, "manager": "systemd --user", "items": [],
+                "reason": "A usable unprivileged systemd user manager is not available."}
+    result = run_fixed_command(
+        [systemctl, "--user", "list-units", "--type=service", "--all",
+         "--no-legend", "--no-pager"], timeout=8
+    )
+    if result["returncode"] != 0:
+        return {"available": False, "manager": "systemd --user", "items": [],
+                "reason": result["stderr"] or "Service discovery failed."}
+    items = []
+    for line in result["stdout"].splitlines():
+        parts = line.split(None, 4)
+        if len(parts) >= 4 and SERVICE_UNIT_RE.fullmatch(parts[0]):
+            items.append({"unit": parts[0], "load": parts[1], "active": parts[2],
+                          "sub": parts[3], "description": parts[4] if len(parts) > 4 else ""})
+    return {"available": True, "manager": "systemd --user", "items": items}
+
+
+def container_runtime():
+    if os.geteuid() == 0:
+        return None
+    podman = shutil.which("podman")
+    if podman:
+        probe = run_fixed_command([podman, "info", "--format", "json"], timeout=8)
+        if probe["returncode"] == 0:
+            return ("podman", podman)
+    docker = shutil.which("docker")
+    if docker:
+        probe = run_fixed_command([docker, "info", "--format", "{{json .SecurityOptions}}"], timeout=8)
+        if probe["returncode"] == 0 and "rootless" in probe["stdout"].lower():
+            return ("docker", docker)
+    return None
+
+
+def list_rootless_containers():
+    runtime = container_runtime()
+    if not runtime:
+        return {"available": False, "runtime": None, "items": [],
+                "reason": "No accessible rootless Podman or rootless Docker runtime was detected."}
+    name, executable = runtime
+    if name == "podman":
+        result = run_fixed_command([executable, "ps", "--all", "--format", "json"], timeout=8)
+        try:
+            raw = json.loads(result["stdout"]) if result["stdout"].strip() else []
+        except ValueError:
+            raw = []
+        items = [{
+            "id": str(item.get("Id", ""))[:64],
+            "name": (item.get("Names") or [item.get("Name", "")])[0] if isinstance(item.get("Names") or [], list) else str(item.get("Names", "")),
+            "image": str(item.get("Image", ""))[:160],
+            "state": str(item.get("State", ""))[:40],
+            "status": str(item.get("Status", ""))[:100],
+        } for item in raw if isinstance(item, dict)]
+    else:
+        result = run_fixed_command([executable, "ps", "--all", "--format", "{{json .}}"], timeout=8)
+        items = []
+        for line in result["stdout"].splitlines():
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            items.append({
+                "id": str(item.get("ID", ""))[:64],
+                "name": str(item.get("Names", ""))[:128],
+                "image": str(item.get("Image", ""))[:160],
+                "state": str(item.get("State", ""))[:40],
+                "status": str(item.get("Status", ""))[:100],
+            })
+    if result["returncode"] != 0:
+        return {"available": False, "runtime": name, "items": [],
+                "reason": result["stderr"] or "Container inventory failed."}
+    return {"available": True, "runtime": name, "items": items}
+
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)
@@ -59,7 +193,7 @@ def configured_ai_model():
 def root():
     return {
         "name": "LinuxCore Server Manager API",
-        "version": "0.5.0",
+        "version": "0.7.0",
         "mode": "read-only",
         "docs": "/docs",
     }
@@ -167,6 +301,99 @@ def network():
             "is_up": bool(interface_status.isup) if interface_status is not None else False,
         })
     return {"interfaces": interfaces, "available": True, "timestamp": timestamp()}
+
+
+
+@app.get("/api/v1/services")
+def services():
+    return list_user_services()
+
+
+@app.post("/api/v1/services/{unit}/action")
+def service_action(unit: str, request: ServiceAction):
+    if not SERVICE_UNIT_RE.fullmatch(unit):
+        raise HTTPException(status_code=400, detail="Invalid user service unit.")
+    inventory = list_user_services()
+    if not inventory["available"]:
+        raise HTTPException(status_code=503, detail=inventory["reason"])
+    if unit not in {item["unit"] for item in inventory["items"]}:
+        raise HTTPException(status_code=404, detail="The service is not in the current user-service inventory.")
+    systemctl = user_systemctl()
+    result = run_fixed_command([systemctl, "--user", request.action, unit], timeout=20)
+    if result["returncode"] != 0:
+        raise HTTPException(status_code=502, detail=result["stderr"] or "Service action failed.")
+    return {"ok": True, "unit": unit, "action": request.action}
+
+
+@app.get("/api/v1/containers")
+def containers():
+    return list_rootless_containers()
+
+
+@app.post("/api/v1/containers/{container_id}/action")
+def container_action(container_id: str, request: ContainerAction):
+    if not CONTAINER_ID_RE.fullmatch(container_id):
+        raise HTTPException(status_code=400, detail="Invalid container identifier.")
+    inventory = list_rootless_containers()
+    if not inventory["available"]:
+        raise HTTPException(status_code=503, detail=inventory["reason"])
+    match = next((item for item in inventory["items"]
+                  if container_id in (item["id"], item["name"])), None)
+    if not match:
+        raise HTTPException(status_code=404, detail="Container not found in the current rootless inventory.")
+    runtime = container_runtime()
+    if not runtime:
+        raise HTTPException(status_code=503, detail="Rootless container runtime is unavailable.")
+    _, executable = runtime
+    result = run_fixed_command([executable, request.action, match["id"]], timeout=30)
+    if result["returncode"] != 0:
+        raise HTTPException(status_code=502, detail=result["stderr"] or "Container action failed.")
+    return {"ok": True, "container": match["name"], "action": request.action}
+
+
+@app.get("/api/v1/terminal/commands")
+def terminal_commands():
+    return {"available": True, "mode": "allowlisted-diagnostics",
+            "commands": [{"id": key, "label": key} for key in TERMINAL_COMMANDS]}
+
+
+@app.post("/api/v1/terminal/run")
+def terminal_run(request: TerminalRequest):
+    argv = TERMINAL_COMMANDS[request.command]
+    executable = shutil.which(argv[0])
+    if not executable:
+        raise HTTPException(status_code=503, detail=f"{argv[0]} is not installed in this Linux environment.")
+    result = run_fixed_command([executable, *argv[1:]], timeout=8)
+    if result["returncode"] != 0:
+        raise HTTPException(status_code=502, detail=result["stderr"] or "Diagnostic command failed.")
+    return {"command": request.command, "output": result["stdout"][:12000], "mode": "read-only"}
+
+
+@app.get("/api/v1/recovery/check")
+def recovery_check():
+    root = Path(__file__).resolve().parent.parent
+    required = [root / "frontend" / "index.html", root / "frontend" / "app.js",
+                root / "scripts" / "start.sh", root / "scripts" / "recover.sh"]
+    files = [{"path": str(path.relative_to(root)), "present": path.is_file()} for path in required]
+    imports = run_fixed_command([str(root / "backend" / ".venv" / "bin" / "python"),
+                                 "-c", "import fastapi, uvicorn, psutil, dotenv"], timeout=8)
+    return {"healthy": all(item["present"] for item in files) and imports["returncode"] == 0,
+            "files": files, "dependencies": imports["returncode"] == 0,
+            "recovery_mode": "backup-config-and-restart-owned-services"}
+
+
+@app.post("/api/v1/recovery/run")
+def recovery_run():
+    root = Path(__file__).resolve().parent.parent
+    script = root / "scripts" / "recover.sh"
+    if not script.is_file():
+        raise HTTPException(status_code=503, detail="Recovery script is missing.")
+    result = run_fixed_command(["bash", str(script)], timeout=60)
+    if result["returncode"] != 0:
+        raise HTTPException(status_code=502, detail=result["stderr"] or result["stdout"] or "Recovery did not complete.")
+    return {"ok": True, "output": result["stdout"][-6000:],
+            "note": "Only LinuxCore-owned local services were checked or started; no system or Android settings were changed."}
+
 
 
 @app.get("/api/v1/ai/status")
