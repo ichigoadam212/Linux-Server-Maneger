@@ -95,6 +95,7 @@ def metrics():
         "network_bytes_sent": net.bytes_sent if net is not None else None,
         "network_bytes_recv": net.bytes_recv if net is not None else None,
         "network_available": net is not None,
+        "network_interface": "aggregate" if net is not None else None,
         "timestamp": timestamp(),
     }
 
