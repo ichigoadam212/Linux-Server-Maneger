@@ -17,3 +17,16 @@ button,.nav-item,.lang-btn,.outline-btn{touch-action:manipulation}
 [dir=rtl] .skip-link{left:auto;right:10px}
 @media(max-width:760px){.sidebar .side-bottom>.nav-item{display:flex}.sidebar .side-bottom>.nav-item i{font-size:18px}.sidebar .side-bottom>.nav-item span{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Controlled operations modules */
+.operation-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 4px;border-bottom:1px solid #1a293c}
+.operation-row:last-child{border-bottom:0}
+.operation-details{display:grid;gap:6px;min-width:0}
+.operation-details b{font-size:12px;color:var(--text);overflow-wrap:anywhere}
+.operation-details small{font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.operation-actions,.terminal-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}
+.operation-actions .outline-btn,.terminal-actions .outline-btn{padding:7px 9px;font-size:10px;text-transform:capitalize}
+.terminal-actions{justify-content:flex-start;margin:14px 0}
+.terminal-output{min-height:150px;max-height:420px;overflow:auto;padding:15px;border:1px solid var(--line);border-radius:8px;background:#070d16;color:#b9eaf0;font:11px/1.65 'IBM Plex Mono',monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:760px){.operation-row{align-items:flex-start;flex-direction:column}.operation-actions{justify-content:flex-start}.operation-actions .outline-btn{padding:8px 10px}}
