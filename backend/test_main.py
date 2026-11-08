@@ -24,7 +24,7 @@ def test_metrics_endpoint_shape_and_ranges():
         "hostname", "platform", "uptime_seconds", "cpu_percent", "cpu_count",
         "memory_percent", "memory_used_gb", "memory_total_gb", "disk_percent",
         "disk_used_gb", "disk_total_gb", "network_bytes_sent",
-        "network_bytes_recv", "network_available", "timestamp",
+        "network_bytes_recv", "network_available", "network_interface", "timestamp",
     }
     assert expected.issubset(payload)
     assert 0 <= payload["cpu_percent"] <= 100
@@ -140,3 +140,25 @@ def test_ai_model_is_restricted_to_documented_ids(monkeypatch):
     assert main.configured_ai_model() == "deepseek-flash"
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
     assert main.configured_ai_model() == "deepseek-v4-pro"
+
+
+
+def test_metrics_identifies_aggregate_network_counter(monkeypatch):
+    class Counters:
+        bytes_sent = 123
+        bytes_recv = 456
+
+    monkeypatch.setattr(main, "safe_net_io_counters", lambda pernic=False: Counters())
+    response = client.get("/api/v1/metrics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["network_available"] is True
+    assert payload["network_interface"] == "aggregate"
+
+
+def test_safe_network_counter_handles_permission_error(monkeypatch):
+    def denied(*args, **kwargs):
+        raise PermissionError("restricted by environment")
+
+    monkeypatch.setattr(main.psutil, "net_io_counters", denied)
+    assert main.safe_net_io_counters() is None
