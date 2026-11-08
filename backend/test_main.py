@@ -243,4 +243,4 @@ def test_recovery_check_reports_project_files():
     assert response.status_code == 200
     payload = response.json()
     assert "files" in payload
-    assert payload["recovery_mode"] == "backup-config-and-restart-owned-services"
+    assert payload["recovery_mode"] == "backup-config-restart-owned-services-and-rollback-on-failure"
