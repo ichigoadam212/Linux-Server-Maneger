@@ -1,31 +1,32 @@
 # LinuxCore Server Manager
 
-Cyber-style, bilingual (Arabic / English) **website** for monitoring a Linux environment. This repository is not an Android application and does not produce an APK.
+Cyber-style, bilingual (Arabic / English) **local website** for monitoring a Linux user-space environment. This repository is not an Android application and does not produce an APK.
 
-**Version:** 0.5.0  
-**Status:** Prepared for a local ARM64 Linux user-space environment; device validation is still pending.
+**Version:** 0.6.0  
+**Status:** Dashboard and read-only API are implemented. Target-device checks remain environment-specific.
 
 ## Architecture
 
-- **Linux host:** one Debian/Ubuntu ARM64 user-space Linux environment can host both LinuxCore and the JARVIS Linux core.
-- **LinuxCore backend:** Python + FastAPI, read-only monitoring endpoints, optional DeepSeek proxy.
-- **LinuxCore frontend:** static HTML/CSS/JavaScript website opened in the phone browser.
-- **JARVIS:** remains a separate project/service. Sharing the same Linux environment does not merge its code or grant Android-level privileges.
-- **Android bridge:** remains a separate, limited integration. Without Android root, Linux cannot directly control protected Android system functions.
+- **Linux host:** Debian/Ubuntu ARM64 user-space Linux environment.
+- **Backend:** Python + FastAPI. Monitoring endpoints are read-only.
+- **Frontend:** Static HTML/CSS/JavaScript website opened in a browser.
+- **Optional AI:** DeepSeek chat proxy. The API key stays in the backend environment.
+- **JARVIS:** Separate project and runtime. Sharing a Linux user-space environment does not merge source code or grant Android privileges.
+- **Android bridge:** Separate future integration, limited to Android interfaces explicitly granted by the user.
 
-The website and backend bind to `127.0.0.1` by default. Do not expose this development build to a public network.
+The dashboard and API bind to 127.0.0.1 by default. This development build is not intended to be exposed to a public network.
 
-## What is implemented
+## Implemented
 
-- Responsive cyber dashboard with Arabic/English interface and RTL support.
-- Live overview cards for hostname, platform and uptime when the local host is connected.
-- FastAPI health, metrics, storage, process and network endpoints.
-- Optional DeepSeek chat assistant through a server-side proxy.
-- Explicit opt-in for sharing a limited aggregate host snapshot with DeepSeek.
-- API key is read from the backend environment; it is never returned to the browser.
-- AI is advisory-only: no shell execution, tool execution, service mutation or host changes.
-- Debian/Ubuntu setup, start, stop, status and environment-check scripts.
-- Automated backend tests in GitHub Actions.
+- Responsive cyber dashboard with Arabic/English UI and RTL support.
+- Live CPU, memory, disk, host identity and uptime metrics.
+- Read-only storage, process and network endpoints.
+- Graceful handling when the Linux environment restricts /proc network counters.
+- Optional DeepSeek chat with explicit opt-in for aggregate host context.
+- Server-side API key handling; the browser never receives the key.
+- AI is advisory-only. It cannot execute shell commands or modify the host.
+- Debian/Ubuntu setup, start, stop, status and diagnostic scripts.
+- Automated backend tests and frontend/shell syntax checks in GitHub Actions.
 
 ## Repository layout
 
@@ -33,41 +34,46 @@ The website and backend bind to `127.0.0.1` by default. Do not expose this devel
     backend/                  FastAPI service and tests
     scripts/                  Linux setup and lifecycle scripts
     docs/                     Deployment and shared-host notes
-      SHARED_LINUX_ARCHITECTURE.md
     .github/workflows/        CI workflow
 
-## First setup in a Debian/Ubuntu Linux environment
+## Run in Debian / Andronix / another Debian-based user-space distro
 
-From the repository root:
+From the repository directory:
 
-    chmod +x scripts/*.sh
-    ./scripts/doctor.sh
-    ./scripts/install-debian.sh
-    ./scripts/start.sh
+    bash scripts/doctor.sh
+    bash scripts/start.sh
 
-Open the website in the phone browser:
+Open the dashboard on the same device:
 
     http://127.0.0.1:8080
 
-Check services:
+Backend health:
 
-    ./scripts/status.sh
+    http://127.0.0.1:8000/api/v1/health
 
-Stop services:
+Check both services:
 
-    ./scripts/stop.sh
+    bash scripts/status.sh
 
-The installer uses the Linux environment's package manager. It does not request or use Android root access. On a rootless user-space distro, package-manager permissions are scoped to that Linux environment.
+Stop both services:
 
-## DeepSeek (optional)
+    bash scripts/stop.sh
 
-Monitoring works without an API key. To enable AI chat:
+The start script creates a virtual environment without requiring Android root. If Python's venv module or pip is missing, install the corresponding packages inside the Linux distribution using the package manager and its available permissions. This does not grant Android root access. Some Andronix/PRoot environments restrict package installation or access to host metrics; the dashboard reports unavailable data instead of inventing values.
 
-1. Copy `backend/.env.example` to `backend/.env`.
-2. Add your own `DEEPSEEK_API_KEY` to `backend/.env`.
-3. Keep `backend/.env` private; it is ignored by Git.
+The scripts can be invoked with bash; executable file permissions are not required.
 
-Supported model IDs are `deepseek-flash` and `deepseek-v4-pro`. The browser calls the local backend; it never receives the key. The optional host snapshot contains aggregate CPU, memory, disk, uptime, platform and a limited storage summary. It excludes process command lines, environment variables and secrets.
+## Optional DeepSeek setup
+
+The dashboard and monitoring API work without a DeepSeek key. To enable chat:
+
+1. Create backend/.env from backend/.env.example.
+2. Add DEEPSEEK_API_KEY to backend/.env.
+3. Keep that file private. It is ignored by Git.
+
+Supported model IDs: deepseek-flash and deepseek-v4-pro.
+
+The browser calls the local backend. The backend sends requests to DeepSeek. If the optional host context checkbox is enabled, the request may include aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary. Process command lines, environment variables, usernames and secrets are excluded.
 
 Official documentation:
 - [DeepSeek Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion/)
@@ -75,50 +81,47 @@ Official documentation:
 
 ## API endpoints
 
-- `GET /api/v1/health`
-- `GET /api/v1/metrics`
-- `GET /api/v1/storage`
-- `GET /api/v1/processes`
-- `GET /api/v1/network`
-- `GET /api/v1/ai/status`
-- `POST /api/v1/ai/chat`
+- GET /api/v1/health
+- GET /api/v1/metrics
+- GET /api/v1/storage
+- GET /api/v1/processes
+- GET /api/v1/network
+- GET /api/v1/ai/status
+- POST /api/v1/ai/chat
 
-API documentation is available locally at `http://127.0.0.1:8000/docs`.
+Local interactive API docs: http://127.0.0.1:8000/docs.
 
 ## Security boundaries
 
-- Localhost-only binding is the default.
-- No arbitrary shell execution, remote terminal, privileged operations, package installation, firewall changes or service start/stop endpoint is exposed.
+- Localhost-only binding by default.
+- No arbitrary shell execution, remote terminal, privileged operations, package installation, firewall changes or service mutation endpoint.
 - No remote pairing is implemented.
-- Before any remote access: authenticated pairing, authorization, TLS, rate limiting, audit logging, origin validation and secure secret storage are required.
-- Review AI suggestions before using them. The AI does not execute actions.
+- AI is advisory-only and must not be treated as an execution agent.
 - Never commit API keys, passwords, private keys or populated environment files.
+- Do not expose this development service to a public network. Remote access requires a separate authenticated design, TLS, authorization, rate limiting, audit logging and secure secret storage.
 
-## Work that must wait for the phone's Linux environment
+## Known limitations / deferred work
 
-These items cannot be honestly completed or verified before the target distro exists:
+These are intentionally not represented as completed features:
 
-- Confirm exact distro, architecture, process visibility and available permissions.
-- Run the setup scripts and verify Python dependencies on the phone.
-- Verify actual CPU/RAM/storage/network readings in that environment.
-- Discover its init system and supported services.
-- Check whether any container runtime exists; containers are not assumed on a rootless phone setup.
-- Validate startup persistence and Android background-process behavior.
-- Complete JARVIS integration against the actual shared Linux runtime.
-- Perform device-specific security and performance tests.
+- Service discovery waits until the target distro's init system is identified.
+- Container discovery is not enabled; Docker/Podman are not assumed in a rootless phone environment.
+- The Terminal page is intentionally disabled; no shell execution endpoint exists.
+- Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
+- DeepSeek chat requires the user's own API key.
+- Android background persistence, exact resource readings and startup behavior require device testing.
+- JARVIS shared-runtime integration and the Android bridge are separate future work.
+- Autonomous repair/recovery is not implemented.
 
-## Roadmap
+## Validation checklist
 
-- [x] Website dashboard and Arabic/English UI
-- [x] Live host identity and uptime overview
-- [x] Read-only host monitoring API
-- [x] Optional DeepSeek assistant
-- [x] Privacy-limited, opt-in AI host context
-- [x] Debian/Ubuntu ARM64 preparation scripts
-- [ ] Phone distro validation and runtime integration
-- [ ] Authenticated host pairing (only if remote access is needed)
-- [ ] Read-only service discovery adapted to the actual init system
-- [ ] JARVIS shared-runtime integration and Android bridge validation
+- [x] Backend API tests pass in the development environment.
+- [x] Frontend JavaScript syntax check is part of CI.
+- [x] Shell script syntax checks are part of CI.
+- [ ] Re-run tests on the target phone after pulling the current branch.
+- [ ] Confirm the dashboard in the phone browser.
+- [ ] Verify CPU, memory and disk readings against the target environment.
+- [ ] Confirm service stop/start behavior after Android backgrounding.
 
 ## License
 
