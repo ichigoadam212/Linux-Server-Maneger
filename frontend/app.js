@@ -153,7 +153,7 @@ function setConnectionState(connected) {
 
 function setMetric(id, value) {
   const numeric = Number(value);
-  const valid = Number.isFinite(numeric) && numeric >= 0 && numeric <= 100;
+  const valid = value !== null && value !== undefined && value !== "" && Number.isFinite(numeric) && numeric >= 0 && numeric <= 100;
   const valueElement = byId(id + "Val");
   const barElement = byId(id + "Bar");
   if (valueElement) valueElement.textContent = valid ? String(Math.round(numeric)) : "—";
