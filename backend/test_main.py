@@ -162,3 +162,85 @@ def test_safe_network_counter_handles_permission_error(monkeypatch):
 
     monkeypatch.setattr(main.psutil, "net_io_counters", denied)
     assert main.safe_net_io_counters() is None
+
+
+def test_services_report_unavailable_without_user_manager(monkeypatch):
+    monkeypatch.setattr(main, "user_systemctl", lambda: None)
+    response = client.get("/api/v1/services")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available"] is False
+    assert payload["items"] == []
+
+
+def test_services_parse_user_units(monkeypatch):
+    monkeypatch.setattr(main, "user_systemctl", lambda: "/usr/bin/systemctl")
+    monkeypatch.setattr(main, "run_fixed_command", lambda *args, **kwargs: {
+        "returncode": 0,
+        "stdout": "demo.service loaded active running Demo service\n",
+        "stderr": "",
+    })
+    payload = client.get("/api/v1/services").json()
+    assert payload["available"] is True
+    assert payload["items"][0]["unit"] == "demo.service"
+    assert payload["items"][0]["active"] == "active"
+
+
+def test_service_action_only_targets_discovered_user_unit(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "user_systemctl", lambda: "/usr/bin/systemctl")
+    monkeypatch.setattr(main, "list_user_services", lambda: {
+        "available": True, "items": [{"unit": "demo.service"}]
+    })
+    monkeypatch.setattr(main, "run_fixed_command", lambda argv, **kwargs: (
+        calls.append(argv) or {"returncode": 0, "stdout": "", "stderr": ""}
+    ))
+    result = main.service_action("demo.service", main.ServiceAction(action="restart"))
+    assert result["ok"] is True
+    assert calls == [["/usr/bin/systemctl", "--user", "restart", "demo.service"]]
+
+
+def test_service_action_rejects_unlisted_unit(monkeypatch):
+    monkeypatch.setattr(main, "list_user_services", lambda: {
+        "available": True, "items": []
+    })
+    from fastapi import HTTPException
+    try:
+        main.service_action("ssh.service", main.ServiceAction(action="stop"))
+    except HTTPException as exc:
+        assert exc.status_code == 404
+    else:
+        raise AssertionError("unlisted service must not be controlled")
+
+
+def test_terminal_runs_only_fixed_diagnostic_command(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/free")
+    monkeypatch.setattr(main, "run_fixed_command", lambda argv, **kwargs: (
+        calls.append(argv) or {"returncode": 0, "stdout": "Mem: 1G", "stderr": ""}
+    ))
+    result = main.terminal_run(main.TerminalRequest(command="memory"))
+    assert result["mode"] == "read-only"
+    assert result["output"] == "Mem: 1G"
+    assert calls == [["/usr/bin/free", "-h"]]
+
+
+def test_terminal_rejects_arbitrary_command():
+    response = client.post("/api/v1/terminal/run", json={"command": "rm -rf /"})
+    assert response.status_code == 422
+
+
+def test_container_inventory_reports_missing_rootless_runtime(monkeypatch):
+    monkeypatch.setattr(main.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(main.shutil, "which", lambda name: None)
+    payload = client.get("/api/v1/containers").json()
+    assert payload["available"] is False
+    assert payload["items"] == []
+
+
+def test_recovery_check_reports_project_files():
+    response = client.get("/api/v1/recovery/check")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "files" in payload
+    assert payload["recovery_mode"] == "backup-config-and-restart-owned-services"
