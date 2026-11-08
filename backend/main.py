@@ -380,7 +380,7 @@ def recovery_check():
                                  "-c", "import fastapi, uvicorn, psutil, dotenv"], timeout=8)
     return {"healthy": all(item["present"] for item in files) and imports["returncode"] == 0,
             "files": files, "dependencies": imports["returncode"] == 0,
-            "recovery_mode": "backup-config-and-restart-owned-services"}
+            "recovery_mode": "backup-config-restart-owned-services-and-rollback-on-failure"}
 
 
 @app.post("/api/v1/recovery/run")

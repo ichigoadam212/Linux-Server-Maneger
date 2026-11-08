@@ -24,7 +24,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - **Services:** Discover and start/stop/restart only services listed by the current unprivileged systemd --user manager. No system-wide or root service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
-- **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. It does not modify Android settings, system services, firewall rules or unrelated files.
+- **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
 - Server-side API key handling; the browser never receives the key.
 - AI remains advisory-only and cannot execute commands or modify the host.
