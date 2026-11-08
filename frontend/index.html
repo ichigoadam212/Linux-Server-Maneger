@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080d18"><meta name="description" content="Local-first Linux server monitoring dashboard with Arabic and English interface."><title>LinuxCore | Server Manager</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <!-- System font stacks keep the dashboard usable offline without third-party font requests. -->
+  <link rel="stylesheet" href="styles.css?v=0.6.0">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
   <div class="shell">
     <aside class="sidebar">
       <a class="brand" href="#"><span class="brand-mark">L<span>+</span></span><span><b>LINUXCORE</b><small>SERVER MANAGER</small></span></a>
       <div class="side-label" data-i18n="workspace">WORKSPACE</div>
-      <nav id="nav">
+      <nav id="nav" aria-label="Main navigation">
         <button class="nav-item active" data-page="overview"><i>◫</i><span data-i18n="overview">Overview</span></button>
         <button class="nav-item" data-page="services"><i>◈</i><span data-i18n="services">Services</span></button>
         <button class="nav-item" data-page="storage"><i>▤</i><span data-i18n="storage">Storage</span></button>
@@ -25,17 +25,17 @@
         <button class="nav-item" data-page="ai"><i>✧</i><span data-i18n="ai">AI Assistant</span><small class="soon">AI</small></button>
 
       </nav>
-      <div class="side-bottom"><div class="connection"><span class="pulse"></span><span><b data-i18n="demoMode">Demo mode</b><small data-i18n="awaiting">Awaiting server connection</small></span></div><button class="nav-item" data-page="settings"><i>⚙</i><span data-i18n="settings">Settings</span></button><div class="version">LINUXCORE <span>v0.5.0</span></div></div>
+      <div class="side-bottom"><div class="connection"><span class="pulse"></span><span><b data-i18n="demoMode">Demo mode</b><small data-i18n="awaiting">Awaiting server connection</small></span></div><button class="nav-item" data-page="settings"><i>⚙</i><span data-i18n="settings">Settings</span></button><div class="version">LINUXCORE <span>v0.6.0</span></div></div>
     </aside>
-    <main class="main">
-      <header class="topbar"><div class="crumb"><span data-i18n="workspace">WORKSPACE</span><b>/</b><strong id="pageTitle">Overview</strong></div><div class="top-actions"><span class="live-tag"><i></i><span data-i18n="systemStandby">SYSTEM STANDBY</span></span><button id="langBtn" class="lang-btn">عربي</button><button class="avatar">A</button></div></header>
-      <section class="page-head"><div><div class="eyebrow"><span></span><span data-i18n="controlCenter">CONTROL CENTER</span></div><h1 data-i18n="overviewTitle">Server overview<span>.</span></h1><p data-i18n="overviewSub">Monitor your infrastructure from one command center.</p></div><div class="head-right"><span class="date" id="clock">--:--:--</span><button class="outline-btn" id="refreshBtn">↻ <span data-i18n="refresh">Refresh</span></button></div></section>
-      <div class="notice"><span class="notice-icon">i</span><span><b data-i18n="preview">Preview environment</b> — <span data-i18n="previewText">Metrics below are sample data until a Linux host is connected.</span></span><span class="notice-status" data-i18n="notConnected">NOT CONNECTED</span></div>
+    <main class="main" id="main-content" tabindex="-1">
+      <header class="topbar"><div class="crumb"><span data-i18n="workspace">WORKSPACE</span><b>/</b><strong id="pageTitle">Overview</strong></div><div class="top-actions"><span class="live-tag"><i></i><span id="systemStatus" data-i18n="systemStandby" aria-live="polite">SYSTEM STANDBY</span></span><button id="langBtn" class="lang-btn" type="button" aria-label="Switch language">عربي</button><span class="avatar" aria-hidden="true">A</span></div></header>
+      <section class="page-head"><div><div class="eyebrow"><span></span><span data-i18n="controlCenter">CONTROL CENTER</span></div><h1 data-i18n="overviewTitle">Server overview<span>.</span></h1><p data-i18n="overviewSub">Monitor your infrastructure from one command center.</p></div><div class="head-right"><span class="date" id="clock">--:--:--</span><button class="outline-btn" id="refreshBtn" type="button" aria-label="Refresh host metrics">↻ <span data-i18n="refresh">Refresh</span></button></div></section>
+      <div class="notice" role="status" aria-live="polite"><span class="notice-icon" id="noticeIcon">i</span><span><b id="noticeTitle" data-i18n="preview">Preview environment</b> — <span id="noticeMessage" data-i18n="previewText">Live metrics appear when a Linux host is connected. No sample values are shown.</span></span><span class="notice-status" id="noticeStatus" data-i18n="notConnected">NOT CONNECTED</span></div>
       <section class="metric-grid">
-        <article class="metric-card"><div class="metric-top"><span data-i18n="cpuUsage">CPU USAGE</span><span class="metric-icon">⌁</span></div><div class="metric-value"><strong id="cpuVal">24</strong><small>%</small><span class="trend muted">—</span></div><div class="meter"><i id="cpuBar" style="width:24%"></i></div><div class="metric-foot"><span data-i18n="processorLoad">Processor load</span><b id="cpuMeta">4 cores</b></div></article>
-        <article class="metric-card"><div class="metric-top"><span data-i18n="memory">MEMORY</span><span class="metric-icon">▥</span></div><div class="metric-value"><strong id="ramVal">61</strong><small>%</small><span class="trend muted">—</span></div><div class="meter cyan"><i id="ramBar" style="width:61%"></i></div><div class="metric-foot"><span data-i18n="memoryUsed">Memory used</span><b id="ramMeta">4.9 / 8 GB</b></div></article>
-        <article class="metric-card"><div class="metric-top"><span data-i18n="storage">STORAGE</span><span class="metric-icon">▤</span></div><div class="metric-value"><strong id="diskVal">38</strong><small>%</small><span class="trend muted">—</span></div><div class="meter purple"><i id="diskBar" style="width:38%"></i></div><div class="metric-foot"><span data-i18n="diskUsed">Disk used</span><b id="diskMeta">152 / 400 GB</b></div></article>
-        <article class="metric-card"><div class="metric-top"><span data-i18n="network">NETWORK</span><span class="metric-icon">⌁</span></div><div class="network-value"><div><small data-i18n="download">↓ DOWNLOAD</small><b id="downVal">8.4 <small>MB/s</small></b></div><div><small data-i18n="upload">↑ UPLOAD</small><b id="upVal">2.1 <small>MB/s</small></b></div></div><div class="network-line"><svg viewBox="0 0 300 42" preserveAspectRatio="none"><path d="M0 31 L20 27 40 30 60 12 80 20 100 8 120 18 140 15 160 29 180 13 200 21 220 6 240 17 260 11 280 22 300 9" /></svg></div><div class="metric-foot"><span data-i18n="interface">Interface</span><b>eth0</b></div></article>
+        <article class="metric-card"><div class="metric-top"><span data-i18n="cpuUsage">CPU USAGE</span><span class="metric-icon">⌁</span></div><div class="metric-value"><strong id="cpuVal">—</strong><small>%</small></div><div class="meter"><i id="cpuBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="processorLoad">Logical cores</span><b id="cpuMeta">—</b></div></article>
+        <article class="metric-card"><div class="metric-top"><span data-i18n="memory">MEMORY</span><span class="metric-icon">▥</span></div><div class="metric-value"><strong id="ramVal">—</strong><small>%</small></div><div class="meter cyan"><i id="ramBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="memoryUsed">Memory used</span><b id="ramMeta">—</b></div></article>
+        <article class="metric-card"><div class="metric-top"><span data-i18n="storage">STORAGE</span><span class="metric-icon">▤</span></div><div class="metric-value"><strong id="diskVal">—</strong><small>%</small></div><div class="meter purple"><i id="diskBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="diskUsed">Disk used</span><b id="diskMeta">—</b></div></article>
+        <article class="metric-card"><div class="metric-top"><span data-i18n="network">NETWORK</span><span class="metric-icon">⌁</span></div><div class="network-value"><div><small data-i18n="download">↓ DOWNLOAD</small><b id="downVal">N/A</b></div><div><small data-i18n="upload">↑ UPLOAD</small><b id="upVal">N/A</b></div></div><div class="network-line"><svg viewBox="0 0 300 42" preserveAspectRatio="none"><path d="M0 31 L20 27 40 30 60 12 80 20 100 8 120 18 140 15 160 29 180 13 200 21 220 6 240 17 260 11 280 22 300 9" /></svg></div><div class="metric-foot"><span data-i18n="interface">Interface</span><b id="networkInterface">—</b></div></article>
       </section>
       <section class="system-facts" aria-label="Connected host details">
         <article class="fact-card"><span data-i18n="hostName">HOSTNAME</span><strong id="hostName">—</strong></article>
@@ -47,19 +47,19 @@
         <article class="panel activity-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="monitoring">MONITORING</div><h2 data-i18n="recentActivity">Recent activity</h2></div><span class="activity-count">03 EVENTS</span></div><div class="activity-list"><div class="activity-row"><span class="activity-dot green"></span><div><b data-i18n="backupCompleted">Backup completed</b><small>/var/backups · 2.4 GB</small></div><time>10:42</time></div><div class="activity-row"><span class="activity-dot blue"></span><div><b data-i18n="serviceRestarted">Service restarted</b><small>nginx.service</small></div><time>09:18</time></div><div class="activity-row"><span class="activity-dot amber"></span><div><b data-i18n="securityScan">Security scan finished</b><small data-i18n="noIssues">No issues detected</small></div><time>08:05</time></div></div><div class="activity-footer" data-i18n="demoActivity">Illustrative activity · not live system events</div></article>
       </section>
       <section class="module-workspace" id="moduleWorkspace" hidden>
-        <div class="module-head"><div><div class="panel-kicker">LINUXCORE MODULE</div><h2 id="moduleTitle">Module</h2><p id="moduleDescription">Live read-only information from the connected Linux environment.</p></div><button class="outline-btn" id="moduleRefresh">↻ Refresh</button></div>
+        <div class="module-head"><div><div class="panel-kicker">LINUXCORE MODULE</div><h2 id="moduleTitle">Module</h2><p id="moduleDescription">Live read-only information from the connected Linux environment.</p></div><button class="outline-btn" id="moduleRefresh" type="button">↻ Refresh</button></div>
         <div id="moduleContent" class="module-content"></div>
       </section>
       <section class="ai-workspace" id="aiWorkspace" hidden>
         <div class="ai-chat">
           <div class="ai-chat-head"><div><h2 id="aiTitle">DeepSeek AI Assistant</h2><p id="aiSub">Ask about Linux, programming, or analyze your connected host.</p></div><span id="aiStatus" class="ai-status offline">AI NOT CONFIGURED</span></div>
           <div class="ai-messages" id="aiMessages"><div class="ai-message assistant"><span class="ai-who">LINUXCORE AI</span><p data-i18n="aiWelcome">Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.</p></div></div>
-          <div class="ai-compose"><textarea id="aiInput" rows="2" placeholder="Ask LinuxCore AI something..."></textarea><button id="aiSend" class="ai-send">Send</button></div>
+          <div class="ai-compose"><textarea id="aiInput" rows="2" placeholder="Ask LinuxCore AI something..."></textarea><button id="aiSend" class="ai-send" type="button">Send</button></div>
         </div>
         <aside class="ai-info"><h3>PRIVACY & CONTEXT</h3><label class="ai-check"><input type="checkbox" id="aiIncludeContext"><span id="aiContextLabel">Include aggregate host metrics in this request</span></label><p id="aiPrivacy">Only aggregate CPU, memory, disk, uptime and storage summary are shared. No process details or secrets.</p><div id="aiSetup" class="ai-setup">Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.</div></aside>
       </section>
-      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.5.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
+      <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.6.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
     </main>
   </div>
-  <div id="toast" role="status"></div><script src="app.js"></script>
+  <div id="toast" role="status"></div><script src="app.js?v=0.6.0" defer></script>
 </body></html>

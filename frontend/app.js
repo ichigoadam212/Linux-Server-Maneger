@@ -1,111 +1,555 @@
-const translations={
-en:{workspace:"WORKSPACE",overview:"Overview",hostName:"HOSTNAME",platform:"PLATFORM",uptime:"UPTIME",services:"Services",storage:"Storage",processes:"Processes",networkPage:"Network",serviceDiscoveryPending:"Service discovery will be enabled after the target Linux init system is identified.",containers:"Containers",terminal:"Terminal",security:"Security",ai:"AI Assistant",demoMode:"Demo mode",awaiting:"Awaiting server connection",settings:"Settings",systemStandby:"SYSTEM STANDBY",controlCenter:"CONTROL CENTER",overviewTitle:"Server overview",overviewSub:"Monitor your infrastructure from one command center.",refresh:"Refresh",preview:"Preview environment",previewText:"Metrics below are sample data until a Linux host is connected.",notConnected:"NOT CONNECTED",cpuUsage:"CPU USAGE",memory:"MEMORY",processorLoad:"Processor load",memoryUsed:"Memory used",diskUsed:"Disk used",network:"NETWORK",download:"↓ DOWNLOAD",upload:"↑ UPLOAD",interface:"Interface",systemHealth:"SYSTEM HEALTH",serviceStatus:"Service status",viewAll:"VIEW ALL ↗",running:"Running",idle:"Idle",monitoring:"MONITORING",recentActivity:"Recent activity",backupCompleted:"Backup completed",serviceRestarted:"Service restarted",securityScan:"Security scan finished",noIssues:"No issues detected",demoActivity:"Illustrative activity · not live system events",footerNote:"Designed for secure, local-first server administration.",aiTitle:"DeepSeek AI Assistant",aiSub:"Ask about Linux, programming, or analyze your connected host.",aiReady:"AI READY",aiOffline:"AI NOT CONFIGURED",aiWelcome:"Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.",aiPlaceholder:"Ask LinuxCore AI something...",aiSend:"Send",aiContext:"Include aggregate host metrics in this request",aiPrivacy:"Only aggregate CPU, memory, disk, uptime and storage summary are shared. No process details or secrets.",aiThinking:"Thinking...",aiSetup:"Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.",aiError:"The assistant could not answer. Check the backend and API configuration.",aiEmpty:"Write a message first.",aiUnavailable:"AI assistant is unavailable until its backend is configured."},
-ar:{workspace:"مساحة العمل",overview:"نظرة عامة",hostName:"اسم المضيف",platform:"النظام والمنصة",uptime:"مدة التشغيل",services:"الخدمات",storage:"التخزين",processes:"العمليات",networkPage:"الشبكة",serviceDiscoveryPending:"سيتم تفعيل اكتشاف الخدمات بعد تحديد مدير التشغيل داخل توزيعة Linux.",containers:"الحاويات",terminal:"الطرفية",security:"الأمان",ai:"المساعد الذكي",demoMode:"وضع تجريبي",awaiting:"في انتظار اتصال السيرفر",settings:"الإعدادات",systemStandby:"النظام في وضع الاستعداد",controlCenter:"مركز التحكم",overviewTitle:"نظرة عامة على السيرفر",overviewSub:"راقب البنية التحتية من مركز تحكم واحد.",refresh:"تحديث",preview:"بيئة معاينة",previewText:"المؤشرات التالية تجريبية حتى يتم توصيل خادم Linux.",notConnected:"غير متصل",cpuUsage:"استخدام المعالج",memory:"الذاكرة",processorLoad:"حمل المعالج",memoryUsed:"الذاكرة المستخدمة",diskUsed:"المساحة المستخدمة",network:"الشبكة",download:"↓ تنزيل",upload:"↑ رفع",interface:"واجهة الاتصال",systemHealth:"حالة النظام",serviceStatus:"حالة الخدمات",viewAll:"عرض الكل ↗",running:"يعمل",idle:"خامل",monitoring:"المراقبة",recentActivity:"النشاط الأخير",backupCompleted:"اكتمل النسخ الاحتياطي",serviceRestarted:"أُعيد تشغيل الخدمة",securityScan:"اكتمل فحص الأمان",noIssues:"لم يتم اكتشاف مشكلات",demoActivity:"نشاط توضيحي · ليس أحداثًا مباشرة",footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن.",aiTitle:"مساعد DeepSeek الذكي",aiSub:"اسأل عن Linux والبرمجة أو اطلب تحليل بيانات السيرفر المتصل.",aiReady:"الذكاء الاصطناعي جاهز",aiOffline:"الذكاء الاصطناعي غير مُعد",aiWelcome:"أهلًا. أقدر أشرح Linux وأساعدك في البرمجة وأحلل مؤشرات السيرفر للقراءة فقط لما تختار مشاركتها.",aiPlaceholder:"اسأل LinuxCore AI...",aiSend:"إرسال",aiContext:"إرفاق مؤشرات السيرفر المجمعة في الطلب ده",aiPrivacy:"سيتم إرسال مؤشرات CPU والذاكرة والتخزين ومدة التشغيل فقط. لا نرسل تفاصيل العمليات أو الأسرار.",aiThinking:"جاري التفكير...",aiSetup:"أضف DEEPSEEK_API_KEY إلى بيئة تشغيل Backend لتفعيل المساعد.",aiError:"المساعد لم يتمكن من الرد. راجع إعدادات Backend وAPI.",aiEmpty:"اكتب رسالة الأول.",aiUnavailable:"المساعد غير متاح حتى يتم إعداد Backend."}
-};
-let lang="en";
-try{lang=localStorage.getItem("linuxcore-lang")||"en"}catch{}
-let currentPage="overview";
-let previousNetwork=null;
-let aiConfigured=false;
-let aiBusy=false;
-const aiHistory=[];
-function t(key){return translations[lang][key]||key}
-function applyLanguage(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.dataset.i18n;if(translations[lang][k])el.textContent=translations[lang][k]});document.getElementById("langBtn").textContent=lang==="en"?"عربي":"English";document.getElementById("pageTitle").textContent=currentPage==="ai"?t("ai"):(translations[lang][currentPage]||currentPage);
- if(currentPage!=="overview"&&currentPage!=="ai")renderModule(currentPage);document.getElementById("aiInput").placeholder=t("aiPlaceholder");document.getElementById("aiSend").textContent=t("aiSend");document.getElementById("aiContextLabel").textContent=t("aiContext");document.getElementById("aiPrivacy").textContent=t("aiPrivacy");document.getElementById("aiTitle").textContent=t("aiTitle");document.getElementById("aiSub").textContent=t("aiSub")}
-function toast(message){const el=document.getElementById("toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
-document.getElementById("langBtn").addEventListener("click",()=>{lang=lang==="en"?"ar":"en";try{localStorage.setItem("linuxcore-lang",lang)}catch{}applyLanguage()});
-document.getElementById("refreshBtn").addEventListener("click",()=>{loadMetrics(true)});
-document.querySelectorAll(".nav-item[data-page]").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page,btn)));
-function navigate(page,button){
- currentPage=page;
- document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
- if(button)button.classList.add("active");
- const ai=page==="ai",module=page!=="overview"&&!ai;
- document.getElementById("aiWorkspace").hidden=!ai;
- document.getElementById("moduleWorkspace").hidden=!module;
- [".page-head",".notice",".metric-grid",".system-facts",".content-grid"].forEach(selector=>document.querySelector(selector).hidden=ai||module);
- document.querySelector(".footer").hidden=ai;
- document.getElementById("pageTitle").dataset.page=ai?"ai":page;
- document.getElementById("pageTitle").textContent=ai?t("ai"):(translations[lang][page]||page);
- if(ai)checkAIStatus();
- if(module)renderModule(page);
- if(page==="overview")loadMetrics();
-}
-document.querySelectorAll("[data-go]").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate("services",document.querySelector('[data-page="services"]'))}));
-function moduleNode(tag,cls,content){const el=document.createElement(tag);if(cls)el.className=cls;if(content!==undefined)el.textContent=content;return el}
-function moduleTable(headers,rows){
- const table=moduleNode("table","module-table"),thead=moduleNode("thead"),tr=moduleNode("tr");
- headers.forEach(h=>tr.append(moduleNode("th","",h)));thead.append(tr);table.append(thead);
- const tbody=moduleNode("tbody");
- rows.forEach(row=>{const line=moduleNode("tr");row.forEach(value=>line.append(moduleNode("td","",String(value??"—"))));tbody.append(line)});
- table.append(tbody);return table;
-}
-function moduleNotice(text){const el=moduleNode("div","module-notice",text);document.getElementById("moduleContent").append(el)}
-async function renderModule(page){
- const ar=lang==="ar",content=document.getElementById("moduleContent");
- content.replaceChildren();
- const titles={services:ar?"الخدمات":"Services",storage:ar?"التخزين":"Storage",containers:ar?"الحاويات":"Containers",terminal:ar?"الطرفية":"Terminal",security:ar?"الأمان":"Security",settings:ar?"الإعدادات":"Settings"};
- const descriptions={services:ar?"اكتشاف الخدمات يعتمد على مدير التشغيل الموجود في توزيعة Linux.":"Service discovery depends on the init system available in the Linux distro.",storage:ar?"أنظمة الملفات ونقاط الربط التي يراها LinuxCore.":"Filesystems and mount points visible to LinuxCore.",containers:ar?"لن نفترض وجود Docker أو Podman قبل فحص البيئة الفعلية.":"Docker or Podman availability will not be assumed before checking the target environment.",terminal:ar?"الطرفية غير مفعلة حفاظًا على أمان لوحة التحكم.":"The terminal is intentionally disabled to keep the dashboard safe.",security:ar?"حدود الأمان الحالية للمشروع.":"Current security boundaries for this project.",settings:ar?"حالة التكامل والإعدادات المحلية.":"Integration status and local configuration."};
- document.getElementById("moduleTitle").textContent=titles[page]||page;
- document.getElementById("moduleDescription").textContent=descriptions[page]||"";
- const refresh=document.getElementById("moduleRefresh");refresh.textContent=ar?"تحديث":"Refresh";refresh.onclick=()=>renderModule(page);
- if(page==="terminal"){moduleNotice(ar?"الوصول للطرفية غير متاح. لا توجد واجهة لتنفيذ أوامر shell، ولن نضيفها قبل تصميم صلاحيات ومصادقة وعزل مناسب.":"Terminal access is unavailable. No shell execution endpoint exists; it will remain disabled until proper authentication, permissions and isolation are designed.");return}
- if(page==="services"){moduleNotice(ar?"تكامل اكتشاف الخدمات مؤجل لحين معرفة مدير التشغيل الفعلي داخل Linux (systemd أو OpenRC أو غيره).":"Service discovery is pending until the target Linux init system (systemd, OpenRC, or another manager) is identified.");return}
- if(page==="containers"){moduleNotice(ar?"اكتشاف الحاويات مؤجل. لن نفترض أن Docker أو Podman يعملان داخل بيئة Linux بدون Root على الهاتف.":"Container discovery is pending. Docker or Podman will not be assumed to work inside the phone's rootless Linux environment.");return}
- if(page==="security"){
-  [["API binding",ar?"127.0.0.1 فقط":"127.0.0.1 only"],["System access",ar?"قراءة فقط":"Read-only"],["AI permissions",ar?"اقتراح وتحليل فقط":"Advisory only"],["Remote pairing",ar?"غير منفذ":"Not implemented"],["Shell execution",ar?"غير متاح":"Unavailable"]].forEach(([k,v])=>{const row=moduleNode("div","module-stat");row.append(moduleNode("b","",k),moduleNode("span","",v));content.append(row)});return;
- }
- if(page==="settings"){
-  try{const r=await fetch("http://127.0.0.1:8000/api/v1/ai/status");const d=await r.json();[["AI provider","DeepSeek"],["Model",d.model],["API key",d.configured?(ar?"مُعد":"Configured"):(ar?"غير مُعد":"Not configured")],["AI mode",d.mode]].forEach(([k,v])=>{const row=moduleNode("div","module-stat");row.append(moduleNode("b","",k),moduleNode("span","",String(v)));content.append(row)})}
-  catch{moduleNotice(ar?"تعذر الاتصال بالـ Backend المحلي.":"Could not reach the local backend.")}
-  moduleNotice(ar?"يُحفظ مفتاح DeepSeek في backend/.env فقط، ولا يوضع في ملفات الواجهة أو GitHub.":"Store the DeepSeek key only in backend/.env, never in frontend files or GitHub.");return;
- }
- const endpoints={storage:"storage",processes:"processes",network:"network"};
- const endpoint=endpoints[page];
- if(!endpoint){moduleNotice(ar?"هذا القسم غير متاح.":"This section is unavailable.");return}
- try{
-  const response=await fetch("http://127.0.0.1:8000/api/v1/"+endpoint,{cache:"no-store"});
-  if(!response.ok)throw new Error("API");
-  const data=await response.json();
-  if(page==="storage")content.append(moduleTable([ar?"نقطة الربط":"Mount",ar?"نظام الملفات":"Filesystem",ar?"الإجمالي GB":"Total GB",ar?"المستخدم GB":"Used GB",ar?"المتاح GB":"Free GB",ar?"الاستخدام %":"Usage %"],data.items.map(x=>[x.mountpoint,x.filesystem,x.total_gb,x.used_gb,x.free_gb,x.percent+"%"])));
-  if(page==="processes")content.append(moduleTable([ar?"العملية":"Process","PID",ar?"الحالة":"Status",ar?"استهلاك الذاكرة":"Memory %"],data.items.map(x=>[x.name,x.pid,x.status,x.memory_percent+"%"])));
-  if(page==="network")content.append(moduleTable([ar?"الواجهة":"Interface",ar?"الحالة":"Link",ar?"استقبال MB":"Received MB",ar?"إرسال MB":"Sent MB",ar?"الحزم المستلمة":"RX packets",ar?"الحزم المرسلة":"TX packets"],data.interfaces.map(x=>[x.name,x.is_up?(ar?"نشط":"Up"):(ar?"متوقف":"Down"),(x.bytes_recv/1048576).toFixed(2),(x.bytes_sent/1048576).toFixed(2),x.packets_recv,x.packets_sent])));
-  if(!data.items?.length&&!data.interfaces?.length)moduleNotice(ar?"لا توجد بيانات متاحة في البيئة الحالية.":"No data is available in the current environment.");
- }catch{moduleNotice(ar?"السيرفر غير متصل. شغّل LinuxCore Backend لعرض البيانات الحقيقية.":"Host is not connected. Start the LinuxCore backend to load live data.");}
-}
-function tick(){document.getElementById("clock").textContent=new Date().toLocaleTimeString(lang==="ar"?"ar-EG":"en-GB")}
-applyLanguage();tick();setInterval(tick,1000);
-function formatUptime(seconds){const total=Math.max(0,Math.floor(Number(seconds)||0));const days=Math.floor(total/86400),hours=Math.floor((total%86400)/3600),minutes=Math.floor((total%3600)/60);return lang==="ar"?`${days} يوم · ${hours} س · ${minutes} د`:`${days}d ${hours}h ${minutes}m`}
-function setMetric(id,value){const n=Math.max(0,Math.min(100,Number(value)||0));document.getElementById(id+"Val").textContent=Math.round(n);document.getElementById(id+"Bar").style.width=n+"%"}
-function rate(bytes,oldBytes,seconds){if(oldBytes===null||seconds<=0)return 0;return Math.max(0,(bytes-oldBytes)/seconds/1024/1024)}
-async function loadMetrics(showToast=false){
- try{
-  const response=await fetch("http://127.0.0.1:8000/api/v1/metrics",{cache:"no-store",signal:AbortSignal.timeout(2500)});
-  if(!response.ok)throw new Error("API unavailable");
-  const d=await response.json();
-  setMetric("cpu",d.cpu_percent);setMetric("ram",d.memory_percent);setMetric("disk",d.disk_percent);
-  document.getElementById("cpuMeta").textContent=d.cpu_count+" cores";
-  document.getElementById("ramMeta").textContent=d.memory_used_gb+" / "+d.memory_total_gb+" GB";
-  document.getElementById("diskMeta").textContent=d.disk_used_gb+" / "+d.disk_total_gb+" GB";
-  document.getElementById("hostName").textContent=d.hostname||"Linux host";
-  document.getElementById("hostPlatform").textContent=d.platform||"Linux";
-  document.getElementById("hostUptime").textContent=formatUptime(d.uptime_seconds);
-  const now=Date.now();
-  if(d.network_available&&d.network_bytes_recv!==null&&d.network_bytes_sent!==null){
-   if(previousNetwork){const seconds=(now-previousNetwork.time)/1000;document.getElementById("downVal").innerHTML=rate(d.network_bytes_recv,previousNetwork.recv,seconds).toFixed(2)+' <small>MB/s</small>';document.getElementById("upVal").innerHTML=rate(d.network_bytes_sent,previousNetwork.sent,seconds).toFixed(2)+' <small>MB/s</small>'}
-   previousNetwork={time:now,recv:d.network_bytes_recv,sent:d.network_bytes_sent};
-  }else{
-   previousNetwork=null;
-   document.getElementById("downVal").textContent="N/A";
-   document.getElementById("upVal").textContent="N/A";
+"use strict";
+
+const translations = {
+  en: {
+    workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
+    services:"Services", storage:"Storage", processes:"Processes", networkPage:"Network", containers:"Containers",
+    terminal:"Terminal", security:"Security", ai:"AI Assistant", settings:"Settings",
+    demoMode:"Demo mode", awaiting:"Awaiting server connection", systemStandby:"SYSTEM STANDBY", systemLive:"LIVE",
+    hostConnected:"Host connected", preview:"Preview environment", previewText:"Live metrics appear when a Linux host is connected. No sample values are shown.",
+    notConnected:"NOT CONNECTED", cpuUsage:"CPU USAGE", memory:"MEMORY", processorLoad:"Logical cores",
+    memoryUsed:"Memory used", diskUsed:"Disk used", network:"NETWORK", download:"↓ DOWNLOAD", upload:"↑ UPLOAD",
+    interface:"Interface", networkAggregate:"All interfaces", controlCenter:"CONTROL CENTER", overviewTitle:"Server overview",
+    overviewSub:"Monitor your Linux environment from one command center.", refresh:"Refresh",
+    systemHealth:"SYSTEM HEALTH", serviceStatus:"Service status", viewAll:"VIEW ALL ↗", monitoring:"MONITORING",
+    recentActivity:"Recent activity", backupCompleted:"Backup completed", serviceRestarted:"Service restarted",
+    securityScan:"Security scan finished", noIssues:"No issues detected", demoActivity:"Illustrative activity · not live system events",
+    footerNote:"Designed for secure, local-first server administration.", serviceDiscoveryPending:"Service discovery is pending identification of the Linux init system.",
+    serviceDescription:"Service discovery depends on the init system available in this Linux environment.",
+    containersDescription:"Docker or Podman availability is checked only when the target environment supports it.",
+    terminalDisabled:"Terminal access is disabled. No shell execution endpoint is exposed by this dashboard.",
+    securityDescription:"Current security boundaries for this project.", settingsDescription:"Local integration and configuration status.",
+    noData:"No data is available in the current environment.", unavailableNetwork:"Network counters are restricted by this Linux environment.",
+    moduleRefresh:"Refresh", apiUnavailable:"The local LinuxCore backend is unavailable. Start the backend and try again.",
+    aiTitle:"DeepSeek AI Assistant", aiSub:"Ask about Linux, programming, or analyze your connected host.",
+    aiReady:"AI READY", aiOffline:"AI NOT CONFIGURED", aiWelcome:"Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.",
+    aiPlaceholder:"Ask LinuxCore AI something...", aiSend:"Send", aiContext:"Include aggregate host metrics in this request",
+    aiPrivacy:"If enabled, aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary are shared. Process command lines, environment variables and secrets are excluded.",
+    aiThinking:"Thinking...", aiSetup:"Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.",
+    aiError:"The assistant could not answer. Check the backend and API configuration.", aiEmpty:"Write a message first.",
+    aiUnavailable:"AI assistant is unavailable until its backend is configured.", cores:"cores", networkNA:"N/A"
+  },
+  ar: {
+    workspace:"مساحة العمل", overview:"نظرة عامة", hostName:"اسم المضيف", platform:"النظام والمنصة", uptime:"مدة التشغيل",
+    services:"الخدمات", storage:"التخزين", processes:"العمليات", networkPage:"الشبكة", containers:"الحاويات",
+    terminal:"الطرفية", security:"الأمان", ai:"المساعد الذكي", settings:"الإعدادات",
+    demoMode:"وضع المعاينة", awaiting:"في انتظار اتصال السيرفر", systemStandby:"النظام في وضع الاستعداد", systemLive:"مباشر",
+    hostConnected:"متصل بالسيرفر", preview:"بيئة معاينة", previewText:"ستظهر المؤشرات الحقيقية عند اتصال خادم Linux. لا يتم عرض أرقام تجريبية.",
+    notConnected:"غير متصل", cpuUsage:"استخدام المعالج", memory:"الذاكرة", processorLoad:"الأنوية المنطقية",
+    memoryUsed:"الذاكرة المستخدمة", diskUsed:"المساحة المستخدمة", network:"الشبكة", download:"↓ تنزيل", upload:"↑ رفع",
+    interface:"واجهة الاتصال", networkAggregate:"كل الواجهات", controlCenter:"مركز التحكم", overviewTitle:"نظرة عامة على السيرفر",
+    overviewSub:"راقب بيئة Linux من مركز تحكم واحد.", refresh:"تحديث",
+    systemHealth:"حالة النظام", serviceStatus:"حالة الخدمات", viewAll:"عرض الكل ↗", monitoring:"المراقبة",
+    recentActivity:"النشاط الأخير", backupCompleted:"اكتمل النسخ الاحتياطي", serviceRestarted:"أُعيد تشغيل الخدمة",
+    securityScan:"اكتمل فحص الأمان", noIssues:"لم يتم اكتشاف مشكلات", demoActivity:"نشاط توضيحي · ليس أحداثًا مباشرة",
+    footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن.", serviceDiscoveryPending:"اكتشاف الخدمات مؤجل لحين تحديد مدير التشغيل داخل Linux.",
+    serviceDescription:"اكتشاف الخدمات يعتمد على مدير التشغيل الموجود في بيئة Linux الحالية.",
+    containersDescription:"سيتم فحص Docker أو Podman فقط إذا كانت البيئة المستهدفة تدعمهما.",
+    terminalDisabled:"الطرفية غير مفعلة. لوحة التحكم لا توفر واجهة لتنفيذ أوامر Shell.",
+    securityDescription:"حدود الأمان الحالية للمشروع.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
+    noData:"لا توجد بيانات متاحة في البيئة الحالية.", unavailableNetwork:"عدادات الشبكة محجوبة بواسطة بيئة Linux الحالية.",
+    moduleRefresh:"تحديث", apiUnavailable:"تعذر الاتصال بـ LinuxCore Backend المحلي. شغّل السيرفر وحاول مرة أخرى.",
+    aiTitle:"مساعد DeepSeek الذكي", aiSub:"اسأل عن Linux والبرمجة أو اطلب تحليل بيانات السيرفر المتصل.",
+    aiReady:"الذكاء الاصطناعي جاهز", aiOffline:"الذكاء الاصطناعي غير مُعد",
+    aiWelcome:"أهلًا. أقدر أشرح Linux وأساعدك في البرمجة وأحلل مؤشرات السيرفر للقراءة فقط لما تختار مشاركتها.",
+    aiPlaceholder:"اسأل LinuxCore AI...", aiSend:"إرسال", aiContext:"إرفاق مؤشرات السيرفر المجمعة في الطلب ده",
+    aiPrivacy:"عند التفعيل، يتم إرسال مؤشرات المعالج والذاكرة والتخزين ومدة التشغيل واسم المضيف والمنصة وملخص محدود للتخزين. لا نرسل سطور أوامر العمليات أو متغيرات البيئة أو الأسرار.",
+    aiThinking:"جاري التفكير...", aiSetup:"أضف DEEPSEEK_API_KEY إلى بيئة تشغيل Backend لتفعيل المساعد.",
+    aiError:"المساعد لم يتمكن من الرد. راجع إعدادات Backend وAPI.", aiEmpty:"اكتب رسالة الأول.",
+    aiUnavailable:"المساعد غير متاح حتى يتم إعداد Backend.", cores:"أنوية", networkNA:"غير متاح"
   }
-  document.querySelector(".notice-status").textContent="LIVE";document.querySelector(".notice-status").style.color="var(--green)";document.querySelector(".notice").style.borderColor="#28694f88";document.querySelector(".notice-icon").textContent="✓";document.querySelector(".notice b").textContent=lang==="ar"?"متصل بالسيرفر":"Host connected";document.querySelector(".notice span:nth-child(2)").lastChild.textContent=lang==="ar"?" المؤشرات مأخوذة من خادم Linux المتصل.":" Live metrics from connected Linux host.";document.querySelector(".pulse").style.background="var(--green)";document.querySelector(".connection b").textContent=lang==="ar"?"متصل":"Connected";document.querySelector(".connection small").textContent=d.hostname;
-  if(showToast)toast(lang==="ar"?"تم تحديث بيانات السيرفر":"Host metrics updated");
- }catch(error){document.querySelector(".notice-status").textContent="NOT CONNECTED";document.querySelector(".notice-status").style.color="var(--amber)";document.querySelector(".pulse").style.background="var(--amber)";document.querySelector(".connection b").textContent=lang==="ar"?"وضع تجريبي":"Demo mode";document.querySelector(".connection small").textContent=lang==="ar"?"في انتظار اتصال السيرفر":"Awaiting server connection";document.getElementById("hostName").textContent="—";document.getElementById("hostPlatform").textContent="—";document.getElementById("hostUptime").textContent="—";if(showToast)toast(lang==="ar"?"السيرفر غير متصل؛ البيانات تجريبية":"Host unavailable; showing preview data")}
+};
+
+let lang = "en";
+try {
+  const saved = localStorage.getItem("linuxcore-lang");
+  if (saved === "ar" || saved === "en") lang = saved;
+} catch (_) {}
+
+let currentPage = "overview";
+let hostConnected = false;
+let metricsRequestId = 0;
+let moduleRequestId = 0;
+let previousNetwork = null;
+let aiConfigured = false;
+let aiBusy = false;
+const aiHistory = [];
+
+function t(key) {
+  return (translations[lang] && translations[lang][key]) || key;
 }
-loadMetrics();setInterval(()=>loadMetrics(),10000);
-function addMessage(role,text){const node=document.createElement("div");node.className="ai-message "+role;const who=document.createElement("span");who.className="ai-who";who.textContent=role==="user"?(lang==="ar"?"أنت":"YOU"):"LINUXCORE AI";const body=document.createElement("p");body.textContent=text;node.append(who,body);document.getElementById("aiMessages").append(node);document.getElementById("aiMessages").scrollTop=document.getElementById("aiMessages").scrollHeight}
-async function checkAIStatus(){const status=document.getElementById("aiStatus");try{const r=await fetch("http://127.0.0.1:8000/api/v1/ai/status",{cache:"no-store"});if(!r.ok)throw new Error();const data=await r.json();aiConfigured=!!data.configured;status.textContent=aiConfigured?t("aiReady"):t("aiOffline");status.className="ai-status "+(aiConfigured?"ready":"offline");document.getElementById("aiSetup").hidden=aiConfigured}catch{aiConfigured=false;status.textContent=t("aiOffline");status.className="ai-status offline";document.getElementById("aiSetup").hidden=false}}
-async function sendAI(){if(aiBusy)return;const input=document.getElementById("aiInput");const content=input.value.trim();if(!content){toast(t("aiEmpty"));return}if(!aiConfigured){toast(t("aiUnavailable"));return}input.value="";aiHistory.push({role:"user",content});if(aiHistory.length>20)aiHistory.splice(0,aiHistory.length-20);addMessage("user",content);aiBusy=true;const send=document.getElementById("aiSend");send.disabled=true;send.textContent=t("aiThinking");const waiting=document.createElement("div");waiting.className="ai-message assistant pending";waiting.textContent=t("aiThinking");document.getElementById("aiMessages").append(waiting);try{const response=await fetch("http://127.0.0.1:8000/api/v1/ai/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:aiHistory,include_server_context:document.getElementById("aiIncludeContext").checked}),signal:AbortSignal.timeout(40000)});const data=await response.json();if(!response.ok)throw new Error(data.detail||"AI request failed");waiting.remove();aiHistory.push({role:"assistant",content:data.answer});addMessage("assistant",data.answer)}catch(error){waiting.remove();aiHistory.pop();toast(error.message||t("aiError"))}finally{aiBusy=false;send.disabled=false;send.textContent=t("aiSend");input.focus()}}
-document.getElementById("aiSend").addEventListener("click",sendAI);
-document.getElementById("aiInput").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();sendAI()}});
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function setText(id, value) {
+  const element = byId(id);
+  if (element) element.textContent = value;
+}
+
+function toast(message) {
+  const element = byId("toast");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.add("show");
+  window.setTimeout(() => element.classList.remove("show"), 2400);
+}
+
+function applyLanguage() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    const key = element.dataset.i18n;
+    if (translations[lang][key]) element.textContent = t(key);
+  });
+  setText("langBtn", lang === "en" ? "عربي" : "English");
+  if (byId("langBtn")) byId("langBtn").setAttribute("aria-label", lang === "en" ? "Switch language" : "تغيير اللغة");
+  setText("systemStatus", hostConnected ? t("systemLive") : t("systemStandby"));
+  setText("pageTitle", currentPage === "ai" ? t("ai") : (translations[lang][currentPage] || currentPage));
+  if (byId("aiInput")) byId("aiInput").placeholder = t("aiPlaceholder");
+  setText("aiSend", t("aiSend"));
+  setText("aiContextLabel", t("aiContext"));
+  setText("aiPrivacy", t("aiPrivacy"));
+  setText("aiTitle", t("aiTitle"));
+  setText("aiSub", t("aiSub"));
+  if (currentPage !== "overview" && currentPage !== "ai") renderModule(currentPage);
+}
+
+function setConnectionState(connected) {
+  hostConnected = connected;
+  const status = byId("noticeStatus");
+  const notice = document.querySelector(".notice");
+  const icon = byId("noticeIcon");
+  const title = byId("noticeTitle");
+  const message = byId("noticeMessage");
+  const live = byId("systemStatus");
+  const pulse = document.querySelector(".pulse");
+  const liveDot = document.querySelector(".live-tag i");
+  const connectionTitle = document.querySelector(".connection b");
+  const connectionDetail = document.querySelector(".connection small");
+
+  if (status) {
+    status.textContent = connected ? "LIVE" : t("notConnected");
+    status.style.color = connected ? "var(--green)" : "var(--amber)";
+  }
+  if (notice) notice.style.borderColor = connected ? "#28694f88" : "";
+  if (icon) icon.textContent = connected ? "✓" : "i";
+  if (title) title.textContent = connected ? t("hostConnected") : t("preview");
+  if (message) message.textContent = connected
+    ? (lang === "ar" ? "المؤشرات مأخوذة من خادم Linux المتصل." : "Live metrics from the connected Linux host.")
+    : t("previewText");
+  if (live) {
+    live.textContent = connected ? t("systemLive") : t("systemStandby");
+    live.dataset.state = connected ? "connected" : "disconnected";
+  }
+  if (pulse) pulse.style.background = connected ? "var(--green)" : "var(--amber)";
+  if (liveDot) liveDot.style.background = connected ? "var(--green)" : "var(--amber)";
+  if (connectionTitle) connectionTitle.textContent = connected
+    ? (lang === "ar" ? "متصل" : "Connected") : t("demoMode");
+  if (connectionDetail) connectionDetail.textContent = connected
+    ? (byId("hostName") ? byId("hostName").textContent : "Linux host") : t("awaiting");
+}
+
+function setMetric(id, value) {
+  const numeric = Number(value);
+  const valid = value !== null && value !== undefined && value !== "" && Number.isFinite(numeric) && numeric >= 0 && numeric <= 100;
+  const valueElement = byId(id + "Val");
+  const barElement = byId(id + "Bar");
+  if (valueElement) valueElement.textContent = valid ? String(Math.round(numeric)) : "—";
+  if (barElement) barElement.style.width = valid ? numeric + "%" : "0%";
+  return valid;
+}
+
+function formatUptime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  return lang === "ar"
+    ? days + " يوم · " + hours + " س · " + minutes + " د"
+    : days + "d " + hours + "h " + minutes + "m";
+}
+
+function rate(bytes, oldBytes, seconds) {
+  if (!Number.isFinite(bytes) || !Number.isFinite(oldBytes) || seconds <= 0) return 0;
+  return Math.max(0, (bytes - oldBytes) / seconds / 1048576);
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options || {});
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  return response.json();
+}
+
+async function loadMetrics(showToast) {
+  const requestId = ++metricsRequestId;
+  try {
+    const data = await fetchJson("http://127.0.0.1:8000/api/v1/metrics", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000)
+    });
+    if (requestId !== metricsRequestId) return;
+
+    setMetric("cpu", data.cpu_percent);
+    setMetric("ram", data.memory_percent);
+    setMetric("disk", data.disk_percent);
+
+    const cpuCount = Number(data.cpu_count);
+    setText("cpuMeta", Number.isInteger(cpuCount) && cpuCount > 0
+      ? cpuCount + " " + t("cores") : "—");
+    setText("ramMeta", Number.isFinite(Number(data.memory_used_gb)) && Number.isFinite(Number(data.memory_total_gb))
+      ? Number(data.memory_used_gb).toFixed(2) + " / " + Number(data.memory_total_gb).toFixed(2) + " GB" : "—");
+    setText("diskMeta", Number.isFinite(Number(data.disk_used_gb)) && Number.isFinite(Number(data.disk_total_gb))
+      ? Number(data.disk_used_gb).toFixed(2) + " / " + Number(data.disk_total_gb).toFixed(2) + " GB" : "—");
+    setText("hostName", data.hostname || "Linux host");
+    setText("hostPlatform", data.platform || "Linux");
+    setText("hostUptime", formatUptime(data.uptime_seconds));
+
+    const now = Date.now();
+    if (data.network_available === true &&
+        Number.isFinite(data.network_bytes_recv) &&
+        Number.isFinite(data.network_bytes_sent)) {
+      if (previousNetwork) {
+        const seconds = (now - previousNetwork.time) / 1000;
+        setText("downVal", rate(data.network_bytes_recv, previousNetwork.recv, seconds).toFixed(2) + " MB/s");
+        setText("upVal", rate(data.network_bytes_sent, previousNetwork.sent, seconds).toFixed(2) + " MB/s");
+      } else {
+        setText("downVal", "—");
+        setText("upVal", "—");
+      }
+      previousNetwork = {
+        time: now,
+        recv: data.network_bytes_recv,
+        sent: data.network_bytes_sent
+      };
+    } else {
+      previousNetwork = null;
+      setText("downVal", t("networkNA"));
+      setText("upVal", t("networkNA"));
+    }
+
+    setText("networkInterface", data.network_available ? (data.network_interface === "aggregate" ? t("networkAggregate") : (data.network_interface || "—")) : t("networkNA"));
+    setConnectionState(true);
+    if (showToast) toast(lang === "ar" ? "تم تحديث بيانات السيرفر" : "Host metrics updated");
+  } catch (error) {
+    if (requestId !== metricsRequestId) return;
+    previousNetwork = null;
+    ["cpu", "ram", "disk"].forEach((id) => setMetric(id, null));
+    ["cpuMeta", "ramMeta", "diskMeta", "hostName", "hostPlatform", "hostUptime"].forEach((id) => setText(id, "—"));
+    setText("downVal", t("networkNA"));
+    setText("upVal", t("networkNA"));
+    setText("networkInterface", t("networkNA"));
+    setConnectionState(false);
+    if (showToast) toast(t("apiUnavailable"));
+  }
+}
+
+function moduleNode(tag, className, content) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (content !== undefined) element.textContent = String(content);
+  return element;
+}
+
+function moduleTable(headers, rows) {
+  const table = moduleNode("table", "module-table");
+  const head = moduleNode("thead");
+  const headRow = moduleNode("tr");
+  headers.forEach((header) => headRow.append(moduleNode("th", "", header)));
+  head.append(headRow);
+  table.append(head);
+
+  const body = moduleNode("tbody");
+  rows.forEach((row) => {
+    const line = moduleNode("tr");
+    row.forEach((value) => line.append(moduleNode("td", "", value == null ? "—" : value)));
+    body.append(line);
+  });
+  table.append(body);
+  return table;
+}
+
+function moduleNotice(message) {
+  const content = byId("moduleContent");
+  if (content) content.append(moduleNode("div", "module-notice", message));
+}
+
+function navigate(page, button) {
+  currentPage = page;
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.remove("active");
+    item.removeAttribute("aria-current");
+  });
+  if (button) {
+    button.classList.add("active");
+    button.setAttribute("aria-current", "page");
+  }
+
+  const isAI = page === "ai";
+  const isModule = page !== "overview" && !isAI;
+  if (byId("aiWorkspace")) byId("aiWorkspace").hidden = !isAI;
+  if (byId("moduleWorkspace")) byId("moduleWorkspace").hidden = !isModule;
+  [".page-head", ".notice", ".metric-grid", ".system-facts", ".content-grid"].forEach((selector) => {
+    document.querySelectorAll(selector).forEach((element) => { element.hidden = isAI || isModule; });
+  });
+  const footer = document.querySelector(".footer");
+  if (footer) footer.hidden = isAI;
+  setText("pageTitle", isAI ? t("ai") : (translations[lang][page] || page));
+
+  if (isAI) checkAIStatus();
+  else if (isModule) renderModule(page);
+  else loadMetrics(false);
+}
+
+async function renderModule(page) {
+  const requestId = ++moduleRequestId;
+  const isArabic = lang === "ar";
+  const content = byId("moduleContent");
+  if (!content) return;
+  content.replaceChildren();
+
+  const titles = {
+    services: t("services"), storage: t("storage"), processes: t("processes"),
+    network: t("networkPage"), containers: t("containers"), terminal: t("terminal"),
+    security: t("security"), settings: t("settings")
+  };
+  const descriptions = {
+    services: t("serviceDescription"), containers: t("containersDescription"),
+    terminal: t("terminalDisabled"), security: t("securityDescription"),
+    settings: t("settingsDescription")
+  };
+  setText("moduleTitle", titles[page] || page);
+  setText("moduleDescription", descriptions[page] || "");
+  const refresh = byId("moduleRefresh");
+  if (refresh) {
+    refresh.textContent = "↻ " + t("moduleRefresh");
+    refresh.onclick = () => renderModule(page);
+  }
+
+  if (page === "terminal") {
+    moduleNotice(t("terminalDisabled"));
+    return;
+  }
+  if (page === "services") {
+    moduleNotice(t("serviceDiscoveryPending"));
+    return;
+  }
+  if (page === "containers") {
+    moduleNotice(t("containersDescription"));
+    return;
+  }
+  if (page === "security") {
+    const rows = [
+      ["API binding", "127.0.0.1 only"],
+      ["System access", "Read-only"],
+      ["AI permissions", "Advisory only"],
+      ["Remote pairing", "Not implemented"],
+      ["Shell execution", "Unavailable"]
+    ];
+    rows.forEach(([key, value]) => {
+      const row = moduleNode("div", "module-stat");
+      row.append(moduleNode("b", "", key), moduleNode("span", "", value));
+      content.append(row);
+    });
+    return;
+  }
+
+  try {
+    if (page === "settings") {
+      const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+        cache: "no-store", signal: AbortSignal.timeout(8000)
+      });
+      if (requestId !== moduleRequestId || currentPage !== page) return;
+      [
+        ["AI provider", data.provider || "DeepSeek"],
+        ["Model", data.model || "—"],
+        ["API key", data.configured ? (isArabic ? "مُعد" : "Configured") : (isArabic ? "غير مُعد" : "Not configured")],
+        ["AI mode", data.mode || "—"]
+      ].forEach(([key, value]) => {
+        const row = moduleNode("div", "module-stat");
+        row.append(moduleNode("b", "", key), moduleNode("span", "", value));
+        content.append(row);
+      });
+      moduleNotice(isArabic
+        ? "يُحفظ مفتاح DeepSeek في backend/.env فقط، ولا يوضع في ملفات الواجهة أو GitHub."
+        : "Store the DeepSeek key only in backend/.env, never in frontend files or GitHub.");
+      return;
+    }
+
+    const endpoints = { storage: "storage", processes: "processes", network: "network" };
+    const endpoint = endpoints[page];
+    if (!endpoint) {
+      moduleNotice(t("noData"));
+      return;
+    }
+
+    const data = await fetchJson("http://127.0.0.1:8000/api/v1/" + endpoint, {
+      cache: "no-store", signal: AbortSignal.timeout(8000)
+    });
+    if (requestId !== moduleRequestId || currentPage !== page) return;
+
+    if (page === "network" && data.available === false) {
+      moduleNotice(data.reason || t("unavailableNetwork"));
+      return;
+    }
+
+    if (page === "storage") {
+      const items = Array.isArray(data.items) ? data.items : [];
+      content.append(moduleTable(
+        [isArabic ? "نقطة الربط" : "Mount", isArabic ? "نظام الملفات" : "Filesystem",
+          "Total GB", "Used GB", "Free GB", "Usage %"],
+        items.map((item) => [item.mountpoint, item.filesystem, item.total_gb, item.used_gb, item.free_gb, item.percent + "%"])
+      ));
+      if (items.length === 0) moduleNotice(t("noData"));
+    } else if (page === "processes") {
+      const items = Array.isArray(data.items) ? data.items : [];
+      content.append(moduleTable(
+        [isArabic ? "العملية" : "Process", "PID", isArabic ? "الحالة" : "Status", "Memory %"],
+        items.map((item) => [item.name, item.pid, item.status, item.memory_percent + "%"])
+      ));
+      if (items.length === 0) moduleNotice(t("noData"));
+    } else if (page === "network") {
+      const interfaces = Array.isArray(data.interfaces) ? data.interfaces : [];
+      content.append(moduleTable(
+        [isArabic ? "الواجهة" : "Interface", isArabic ? "الحالة" : "Link", "Received MB", "Sent MB", "RX packets", "TX packets"],
+        interfaces.map((item) => [
+          item.name, item.is_up ? (isArabic ? "نشط" : "Up") : (isArabic ? "متوقف" : "Down"),
+          (Number(item.bytes_recv || 0) / 1048576).toFixed(2),
+          (Number(item.bytes_sent || 0) / 1048576).toFixed(2),
+          item.packets_recv, item.packets_sent
+        ])
+      ));
+      if (interfaces.length === 0) moduleNotice(t("noData"));
+    }
+  } catch (error) {
+    if (requestId === moduleRequestId && currentPage === page) moduleNotice(t("apiUnavailable"));
+  }
+}
+
+function addMessage(role, message) {
+  const node = moduleNode("div", "ai-message " + role);
+  const who = moduleNode("span", "ai-who", role === "user" ? (lang === "ar" ? "أنت" : "YOU") : "LINUXCORE AI");
+  const body = moduleNode("p", "", message);
+  node.append(who, body);
+  const messages = byId("aiMessages");
+  if (!messages) return;
+  messages.append(node);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function checkAIStatus() {
+  const status = byId("aiStatus");
+  const setup = byId("aiSetup");
+  if (!status || !setup) return;
+  try {
+    const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+      cache: "no-store", signal: AbortSignal.timeout(8000)
+    });
+    aiConfigured = data.configured === true;
+    status.textContent = aiConfigured ? t("aiReady") : t("aiOffline");
+    status.className = "ai-status " + (aiConfigured ? "ready" : "offline");
+    setup.hidden = aiConfigured;
+  } catch (_) {
+    aiConfigured = false;
+    status.textContent = t("aiOffline");
+    status.className = "ai-status offline";
+    setup.hidden = false;
+  }
+}
+
+async function sendAI() {
+  if (aiBusy) return;
+  const input = byId("aiInput");
+  const send = byId("aiSend");
+  const messages = byId("aiMessages");
+  if (!input || !send || !messages) return;
+
+  const content = input.value.trim();
+  if (!content) {
+    toast(t("aiEmpty"));
+    return;
+  }
+  if (!aiConfigured) {
+    toast(t("aiUnavailable"));
+    return;
+  }
+
+  const userMessage = { role: "user", content: content };
+  aiHistory.push(userMessage);
+  while (aiHistory.length > 20) aiHistory.shift();
+  const requestMessages = aiHistory.map((item) => ({ role: item.role, content: item.content }));
+  input.value = "";
+  addMessage("user", content);
+  aiBusy = true;
+  send.disabled = true;
+  send.textContent = t("aiThinking");
+
+  const waiting = moduleNode("div", "ai-message assistant pending", t("aiThinking"));
+  messages.append(waiting);
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/api/v1/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: requestMessages,
+        include_server_context: !!(byId("aiIncludeContext") && byId("aiIncludeContext").checked)
+      }),
+      signal: AbortSignal.timeout(40000)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || "AI request failed");
+    if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("AI returned an empty response");
+    waiting.remove();
+    aiHistory.push({ role: "assistant", content: data.answer });
+    while (aiHistory.length > 20) aiHistory.shift();
+    addMessage("assistant", data.answer);
+  } catch (error) {
+    waiting.remove();
+    const index = aiHistory.lastIndexOf(userMessage);
+    if (index !== -1) aiHistory.splice(index, 1);
+    toast(error && error.message ? error.message : t("aiError"));
+  } finally {
+    aiBusy = false;
+    send.disabled = false;
+    send.textContent = t("aiSend");
+    input.focus();
+  }
+}
+
+byId("langBtn").addEventListener("click", () => {
+  lang = lang === "en" ? "ar" : "en";
+  try { localStorage.setItem("linuxcore-lang", lang); } catch (_) {}
+  applyLanguage();
+  if (currentPage === "overview") loadMetrics(false);
+});
+byId("refreshBtn").addEventListener("click", () => loadMetrics(true));
+document.querySelectorAll(".nav-item[data-page]").forEach((button) => {
+  button.addEventListener("click", () => navigate(button.dataset.page, button));
+});
+document.querySelectorAll("[data-go]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    navigate("services", document.querySelector('[data-page="services"]'));
+  });
+});
+byId("aiSend").addEventListener("click", sendAI);
+byId("aiInput").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendAI();
+  }
+});
+
+function tick() {
+  setText("clock", new Date().toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-GB"));
+}
+
+applyLanguage();
+tick();
+loadMetrics(false);
+window.setInterval(tick, 1000);
+window.setInterval(() => {
+  if (currentPage === "overview") loadMetrics(false);
+}, 10000);
