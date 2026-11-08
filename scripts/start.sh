@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME="$ROOT/.runtime"
 VENV="$ROOT/backend/.venv"
 API_URL="http://127.0.0.1:8000/api/v1/health"
@@ -35,7 +35,7 @@ if ! "$VENV/bin/python" -c "import fastapi, uvicorn, psutil, dotenv" >/dev/null 
 fi
 wait_for_url() {
   local url="$1"
-  local attempts="\${2:-20}"
+  local attempts="${2:-20}"
   for ((attempt=1; attempt<=attempts; attempt++)); do
     if curl --fail --silent --max-time 1 "$url" >/dev/null; then return 0; fi
     sleep 0.5
