@@ -4,7 +4,7 @@ const translations = {
   en: {
     workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
     services:"Services", storage:"Storage", processes:"Processes", networkPage:"Network", containers:"Containers",
-    terminal:"Terminal", security:"Security", ai:"AI Assistant", settings:"Settings",
+    terminal:"Terminal", security:"Security", recovery:"Recovery", ai:"AI Assistant", settings:"Settings",
     demoMode:"Demo mode", awaiting:"Awaiting server connection", systemStandby:"SYSTEM STANDBY", systemLive:"LIVE",
     hostConnected:"Host connected", preview:"Preview environment", previewText:"Live metrics appear when a Linux host is connected. No sample values are shown.",
     notConnected:"NOT CONNECTED", cpuUsage:"CPU USAGE", memory:"MEMORY", processorLoad:"Logical cores",
@@ -15,10 +15,10 @@ const translations = {
     recentActivity:"Recent activity", backupCompleted:"Backup completed", serviceRestarted:"Service restarted",
     securityScan:"Security scan finished", noIssues:"No issues detected", demoActivity:"Illustrative activity · not live system events",
     footerNote:"Designed for secure, local-first server administration.", serviceDiscoveryPending:"Service discovery is pending identification of the Linux init system.",
-    serviceDescription:"Service discovery depends on the init system available in this Linux environment.",
-    containersDescription:"Docker or Podman availability is checked only when the target environment supports it.",
-    terminalDisabled:"Terminal access is disabled. No shell execution endpoint is exposed by this dashboard.",
-    securityDescription:"Current security boundaries for this project.", settingsDescription:"Local integration and configuration status.",
+    serviceDescription:"Manage only services owned by your unprivileged systemd user session.",
+    containersDescription:"Inspect and control containers only through an accessible rootless Podman or Docker runtime.",
+    terminalDisabled:"Run a fixed set of read-only diagnostic commands. Arbitrary shell input is intentionally unavailable.",
+    securityDescription:"Current security boundaries for this project.", recoveryDescription:"Check LinuxCore and safely restart only its own local services.", settingsDescription:"Local integration and configuration status.",
     noData:"No data is available in the current environment.", unavailableNetwork:"Network counters are restricted by this Linux environment.",
     moduleRefresh:"Refresh", apiUnavailable:"The local LinuxCore backend is unavailable. Start the backend and try again.",
     aiTitle:"DeepSeek AI Assistant", aiSub:"Ask about Linux, programming, or analyze your connected host.",
@@ -32,7 +32,7 @@ const translations = {
   ar: {
     workspace:"مساحة العمل", overview:"نظرة عامة", hostName:"اسم المضيف", platform:"النظام والمنصة", uptime:"مدة التشغيل",
     services:"الخدمات", storage:"التخزين", processes:"العمليات", networkPage:"الشبكة", containers:"الحاويات",
-    terminal:"الطرفية", security:"الأمان", ai:"المساعد الذكي", settings:"الإعدادات",
+    terminal:"الطرفية", security:"الأمان", recovery:"الاستعادة", ai:"المساعد الذكي", settings:"الإعدادات",
     demoMode:"وضع المعاينة", awaiting:"في انتظار اتصال السيرفر", systemStandby:"النظام في وضع الاستعداد", systemLive:"مباشر",
     hostConnected:"متصل بالسيرفر", preview:"بيئة معاينة", previewText:"ستظهر المؤشرات الحقيقية عند اتصال خادم Linux. لا يتم عرض أرقام تجريبية.",
     notConnected:"غير متصل", cpuUsage:"استخدام المعالج", memory:"الذاكرة", processorLoad:"الأنوية المنطقية",
@@ -43,10 +43,10 @@ const translations = {
     recentActivity:"النشاط الأخير", backupCompleted:"اكتمل النسخ الاحتياطي", serviceRestarted:"أُعيد تشغيل الخدمة",
     securityScan:"اكتمل فحص الأمان", noIssues:"لم يتم اكتشاف مشكلات", demoActivity:"نشاط توضيحي · ليس أحداثًا مباشرة",
     footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن.", serviceDiscoveryPending:"اكتشاف الخدمات مؤجل لحين تحديد مدير التشغيل داخل Linux.",
-    serviceDescription:"اكتشاف الخدمات يعتمد على مدير التشغيل الموجود في بيئة Linux الحالية.",
-    containersDescription:"سيتم فحص Docker أو Podman فقط إذا كانت البيئة المستهدفة تدعمهما.",
-    terminalDisabled:"الطرفية غير مفعلة. لوحة التحكم لا توفر واجهة لتنفيذ أوامر Shell.",
-    securityDescription:"حدود الأمان الحالية للمشروع.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
+    serviceDescription:"إدارة خدمات جلسة systemd الخاصة بالمستخدم فقط، من غير صلاحيات Root.",
+    containersDescription:"عرض وإدارة الحاويات من خلال Podman أو Docker بنمط Rootless فقط.",
+    terminalDisabled:"تشغيل مجموعة محددة من أوامر التشخيص للقراءة فقط. تنفيذ أوامر Shell عشوائية غير متاح.",
+    securityDescription:"حدود الأمان الحالية للمشروع.", recoveryDescription:"فحص LinuxCore وإعادة تشغيل خدماته المحلية فقط بشكل آمن.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
     noData:"لا توجد بيانات متاحة في البيئة الحالية.", unavailableNetwork:"عدادات الشبكة محجوبة بواسطة بيئة Linux الحالية.",
     moduleRefresh:"تحديث", apiUnavailable:"تعذر الاتصال بـ LinuxCore Backend المحلي. شغّل السيرفر وحاول مرة أخرى.",
     aiTitle:"مساعد DeepSeek الذكي", aiSub:"اسأل عن Linux والبرمجة أو اطلب تحليل بيانات السيرفر المتصل.",
@@ -302,6 +302,23 @@ function navigate(page, button) {
   else loadMetrics(false);
 }
 
+function moduleActionButton(label, callback) {
+  const button = moduleNode("button", "outline-btn", label);
+  button.type = "button";
+  button.addEventListener("click", callback);
+  return button;
+}
+
+async function postJson(url, body, timeoutMs) {
+  return fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs || 12000)
+  });
+}
+
 async function renderModule(page) {
   const requestId = ++moduleRequestId;
   const isArabic = lang === "ar";
@@ -312,12 +329,12 @@ async function renderModule(page) {
   const titles = {
     services: t("services"), storage: t("storage"), processes: t("processes"),
     network: t("networkPage"), containers: t("containers"), terminal: t("terminal"),
-    security: t("security"), settings: t("settings")
+    security: t("security"), recovery: t("recovery"), settings: t("settings")
   };
   const descriptions = {
     services: t("serviceDescription"), containers: t("containersDescription"),
     terminal: t("terminalDisabled"), security: t("securityDescription"),
-    settings: t("settingsDescription")
+    recovery: t("recoveryDescription"), settings: t("settingsDescription")
   };
   setText("moduleTitle", titles[page] || page);
   setText("moduleDescription", descriptions[page] || "");
@@ -327,25 +344,14 @@ async function renderModule(page) {
     refresh.onclick = () => renderModule(page);
   }
 
-  if (page === "terminal") {
-    moduleNotice(t("terminalDisabled"));
-    return;
-  }
-  if (page === "services") {
-    moduleNotice(t("serviceDiscoveryPending"));
-    return;
-  }
-  if (page === "containers") {
-    moduleNotice(t("containersDescription"));
-    return;
-  }
   if (page === "security") {
     const rows = [
       ["API binding", "127.0.0.1 only"],
-      ["System access", "Read-only"],
+      ["Service control", "systemd --user only"],
+      ["Container control", "Rootless runtime only"],
+      ["Terminal", "Allowlisted read-only diagnostics"],
       ["AI permissions", "Advisory only"],
-      ["Remote pairing", "Not implemented"],
-      ["Shell execution", "Unavailable"]
+      ["Android / system root", "No access"]
     ];
     rows.forEach(([key, value]) => {
       const row = moduleNode("div", "module-stat");
@@ -356,6 +362,135 @@ async function renderModule(page) {
   }
 
   try {
+    if (page === "services") {
+      const data = await fetchJson("http://127.0.0.1:8000/api/v1/services", {
+        cache: "no-store", signal: AbortSignal.timeout(10000)
+      });
+      if (requestId !== moduleRequestId || currentPage !== page) return;
+      if (!data.available) { moduleNotice(data.reason || t("noData")); return; }
+      const items = Array.isArray(data.items) ? data.items : [];
+      moduleNotice((isArabic ? "مدير الخدمات: " : "Service manager: ") + data.manager);
+      if (!items.length) { moduleNotice(t("noData")); return; }
+      items.forEach((item) => {
+        const row = moduleNode("div", "operation-row");
+        const details = moduleNode("div", "operation-details");
+        details.append(moduleNode("b", "", item.unit),
+          moduleNode("small", "", [item.active, item.sub, item.description].filter(Boolean).join(" · ")));
+        const controls = moduleNode("div", "operation-actions");
+        ["start", "stop", "restart"].forEach((action) => {
+          controls.append(moduleActionButton(
+            isArabic ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
+            async () => {
+              try {
+                await postJson("http://127.0.0.1:8000/api/v1/services/" +
+                  encodeURIComponent(item.unit) + "/action", {action}, 25000);
+                toast(isArabic ? "تم إرسال الإجراء للخدمة" : "Service action completed");
+                renderModule("services");
+              } catch (error) { toast(error.message || t("apiUnavailable")); }
+            }
+          ));
+        });
+        row.append(details, controls);
+        content.append(row);
+      });
+      return;
+    }
+
+    if (page === "containers") {
+      const data = await fetchJson("http://127.0.0.1:8000/api/v1/containers", {
+        cache: "no-store", signal: AbortSignal.timeout(12000)
+      });
+      if (requestId !== moduleRequestId || currentPage !== page) return;
+      if (!data.available) { moduleNotice(data.reason || t("noData")); return; }
+      moduleNotice((isArabic ? "بيئة الحاويات: " : "Container runtime: ") + data.runtime);
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) { moduleNotice(t("noData")); return; }
+      items.forEach((item) => {
+        const row = moduleNode("div", "operation-row");
+        const details = moduleNode("div", "operation-details");
+        details.append(moduleNode("b", "", item.name || item.id),
+          moduleNode("small", "", [item.image, item.state, item.status].filter(Boolean).join(" · ")));
+        const controls = moduleNode("div", "operation-actions");
+        ["start", "stop", "restart"].forEach((action) => {
+          controls.append(moduleActionButton(isArabic
+            ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
+          async () => {
+            try {
+              await postJson("http://127.0.0.1:8000/api/v1/containers/" +
+                encodeURIComponent(item.id || item.name) + "/action", {action}, 35000);
+              toast(isArabic ? "تم تنفيذ الإجراء" : "Container action completed");
+              renderModule("containers");
+            } catch (error) { toast(error.message || t("apiUnavailable")); }
+          }));
+        });
+        row.append(details, controls);
+        content.append(row);
+      });
+      return;
+    }
+
+    if (page === "terminal") {
+      moduleNotice(t("terminalDisabled"));
+      const output = moduleNode("pre", "terminal-output",
+        isArabic ? "اختار أمر تشخيص من الأزرار لعرض النتيجة هنا." : "Choose a diagnostic preset to view its output here.");
+      const actions = moduleNode("div", "terminal-actions");
+      const labels = {
+        pwd: isArabic ? "المسار الحالي" : "Working directory",
+        system: isArabic ? "معلومات النظام" : "System info",
+        storage: isArabic ? "التخزين" : "Storage",
+        memory: isArabic ? "الذاكرة" : "Memory",
+        uptime: isArabic ? "مدة التشغيل" : "Uptime",
+        processes: isArabic ? "العمليات" : "Processes"
+      };
+      Object.keys(labels).forEach((command) => {
+        actions.append(moduleActionButton(labels[command], async () => {
+          output.textContent = isArabic ? "جاري التنفيذ..." : "Running diagnostic...";
+          try {
+            const data = await postJson("http://127.0.0.1:8000/api/v1/terminal/run", {command}, 12000);
+            output.textContent = data.output || (isArabic ? "لا يوجد ناتج." : "No output.");
+          } catch (error) { output.textContent = error.message || t("apiUnavailable"); }
+        }));
+      });
+      content.append(actions, output);
+      return;
+    }
+
+    if (page === "recovery") {
+      const data = await fetchJson("http://127.0.0.1:8000/api/v1/recovery/check", {
+        cache: "no-store", signal: AbortSignal.timeout(10000)
+      });
+      if (requestId !== moduleRequestId || currentPage !== page) return;
+      const summary = moduleNode("div", "module-stat");
+      summary.append(moduleNode("b", "", isArabic ? "نتيجة الفحص" : "Health check"),
+        moduleNode("span", "", data.healthy ? (isArabic ? "سليم" : "Healthy") : (isArabic ? "يحتاج مراجعة" : "Needs attention")));
+      content.append(summary);
+      (data.files || []).forEach((item) => {
+        const row = moduleNode("div", "module-stat");
+        row.append(moduleNode("b", "", item.path),
+          moduleNode("span", "", item.present ? "OK" : "MISSING"));
+        content.append(row);
+      });
+      const deps = moduleNode("div", "module-stat");
+      deps.append(moduleNode("b", "", isArabic ? "اعتماديات Python" : "Python dependencies"),
+        moduleNode("span", "", data.dependencies ? "OK" : "MISSING"));
+      content.append(deps);
+      moduleNotice(isArabic
+        ? "الاستعادة تحفظ نسخة من backend/.env ثم تتحقق من ملفات المشروع وتشغّل خدمات LinuxCore المحلية فقط. لا تغيّر إعدادات Android أو خدمات النظام."
+        : "Recovery backs up backend/.env, validates project files, and starts only LinuxCore local services. It does not change Android or system settings.");
+      content.append(moduleActionButton(isArabic ? "ابدأ الفحص والاستعادة" : "Run safe recovery", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const result = await postJson("http://127.0.0.1:8000/api/v1/recovery/run", {}, 70000);
+          moduleNotice(result.output || (isArabic ? "اكتملت الاستعادة." : "Recovery completed."));
+          toast(isArabic ? "اكتملت الاستعادة" : "Recovery completed");
+        } catch (error) {
+          moduleNotice(error.message || t("apiUnavailable"));
+        } finally { button.disabled = false; }
+      }));
+      return;
+    }
+
     if (page === "settings") {
       const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
         cache: "no-store", signal: AbortSignal.timeout(8000)
@@ -379,21 +514,14 @@ async function renderModule(page) {
 
     const endpoints = { storage: "storage", processes: "processes", network: "network" };
     const endpoint = endpoints[page];
-    if (!endpoint) {
-      moduleNotice(t("noData"));
-      return;
-    }
-
+    if (!endpoint) { moduleNotice(t("noData")); return; }
     const data = await fetchJson("http://127.0.0.1:8000/api/v1/" + endpoint, {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     if (requestId !== moduleRequestId || currentPage !== page) return;
-
     if (page === "network" && data.available === false) {
-      moduleNotice(data.reason || t("unavailableNetwork"));
-      return;
+      moduleNotice(data.reason || t("unavailableNetwork")); return;
     }
-
     if (page === "storage") {
       const items = Array.isArray(data.items) ? data.items : [];
       content.append(moduleTable(
@@ -423,7 +551,7 @@ async function renderModule(page) {
       if (interfaces.length === 0) moduleNotice(t("noData"));
     }
   } catch (error) {
-    if (requestId === moduleRequestId && currentPage === page) moduleNotice(t("apiUnavailable"));
+    if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
   }
 }
 
