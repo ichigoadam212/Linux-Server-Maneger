@@ -64,6 +64,13 @@ def test_health_endpoint():
     assert "timestamp" in payload
 
 
+def test_api_responses_disable_caching():
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["pragma"] == "no-cache"
+
+
 def test_metrics_endpoint_shape_and_ranges():
     response = client.get("/api/v1/metrics")
     assert response.status_code == 200
