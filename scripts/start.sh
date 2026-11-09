@@ -42,9 +42,20 @@ wait_for_url() {
   done
   return 1
 }
-if curl --fail --silent --max-time 1 "$API_URL" >/dev/null; then
+api_is_linuxcore() {
+  local body
+  body="$(curl --fail --silent --max-time 1 "$API_URL" 2>/dev/null)" || return 1
+  printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("status") == "ok" and d.get("service") == "linuxcore-api" else 1)' >/dev/null 2>&1 && return 0
+  return 2
+}
+if api_is_linuxcore; then
   echo "LinuxCore API is already responding."
 else
+  api_probe_status=$?
+  if [[ "$api_probe_status" -eq 2 ]]; then
+    echo "Port 8000 responds, but it is not the LinuxCore API; refusing to treat it as healthy." >&2
+    exit 1
+  fi
   ( cd "$ROOT/backend"; nohup "$VENV/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid" )
 fi
 if curl --fail --silent --max-time 1 "$WEB_URL" >/dev/null; then
