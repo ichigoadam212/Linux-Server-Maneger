@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+import threading
 from typing import Literal
 
 import httpx
@@ -19,6 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="LinuxCore Server Manager API", version="0.7.0")
+
+# Prevent overlapping recovery runs inside this API process.
+RECOVERY_LOCK = threading.Lock()
 
 # Local development only. Remote access requires authentication, TLS and auditing.
 app.add_middleware(
@@ -385,15 +389,20 @@ def recovery_check():
 
 @app.post("/api/v1/recovery/run")
 def recovery_run():
-    root = Path(__file__).resolve().parent.parent
-    script = root / "scripts" / "recover.sh"
-    if not script.is_file():
-        raise HTTPException(status_code=503, detail="Recovery script is missing.")
-    result = run_fixed_command(["bash", str(script)], timeout=60)
-    if result["returncode"] != 0:
-        raise HTTPException(status_code=502, detail=result["stderr"] or result["stdout"] or "Recovery did not complete.")
-    return {"ok": True, "output": result["stdout"][-6000:],
-            "note": "Only LinuxCore-owned local services were checked or started; no system or Android settings were changed."}
+    if not RECOVERY_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A LinuxCore recovery operation is already running.")
+    try:
+        root = Path(__file__).resolve().parent.parent
+        script = root / "scripts" / "recover.sh"
+        if not script.is_file():
+            raise HTTPException(status_code=503, detail="Recovery script is missing.")
+        result = run_fixed_command(["bash", str(script)], timeout=60)
+        if result["returncode"] != 0:
+            raise HTTPException(status_code=502, detail=result["stderr"] or result["stdout"] or "Recovery did not complete.")
+        return {"ok": True, "output": result["stdout"][-6000:],
+                "note": "Only LinuxCore-owned local services were checked or started; no system or Android settings were changed."}
+    finally:
+        RECOVERY_LOCK.release()
 
 
 

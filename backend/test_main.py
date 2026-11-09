@@ -244,3 +244,30 @@ def test_recovery_check_reports_project_files():
     payload = response.json()
     assert "files" in payload
     assert payload["recovery_mode"] == "backup-config-restart-owned-services-and-rollback-on-failure"
+
+
+
+def test_recovery_run_executes_only_project_recovery_script(monkeypatch):
+    calls = []
+
+    def fake_run(argv, timeout=8):
+        calls.append((argv, timeout))
+        return {"returncode": 0, "stdout": "Recovery checks completed.", "stderr": ""}
+
+    monkeypatch.setattr(main, "run_fixed_command", fake_run)
+    response = client.post("/api/v1/recovery/run")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert calls[0][0][0] == "bash"
+    assert calls[0][0][1].endswith("/scripts/recover.sh")
+    assert calls[0][1] == 60
+
+
+def test_recovery_run_rejects_overlapping_operation():
+    assert main.RECOVERY_LOCK.acquire(blocking=False)
+    try:
+        response = client.post("/api/v1/recovery/run")
+        assert response.status_code == 409
+        assert "already running" in response.json()["detail"]
+    finally:
+        main.RECOVERY_LOCK.release()
