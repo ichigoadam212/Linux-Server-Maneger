@@ -44,5 +44,8 @@ jobs:
       - name: Validate frontend JavaScript
         run: node --check ../frontend/app.js
 
+      - name: Run local security checks
+        run: bash ../scripts/security-check.sh
+
       - name: Run backend tests
         run: pytest -q
