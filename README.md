@@ -27,6 +27,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
 - Server-side API key handling; the browser never receives the key.
+- API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Automated backend tests and frontend/shell syntax checks in GitHub Actions.
