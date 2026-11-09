@@ -200,6 +200,21 @@ def test_service_action_only_targets_discovered_user_unit(monkeypatch):
     assert calls == [["/usr/bin/systemctl", "--user", "restart", "demo.service"]]
 
 
+def test_service_action_handles_manager_disappearing_after_discovery(monkeypatch):
+    monkeypatch.setattr(main, "list_user_services", lambda: {
+        "available": True, "items": [{"unit": "demo.service"}]
+    })
+    monkeypatch.setattr(main, "user_systemctl", lambda: None)
+
+    response = client.post(
+        "/api/v1/services/demo.service/action",
+        json={"action": "restart"},
+    )
+
+    assert response.status_code == 503
+    assert "became unavailable" in response.json()["detail"]
+
+
 def test_service_action_rejects_unlisted_unit(monkeypatch):
     monkeypatch.setattr(main, "list_user_services", lambda: {
         "available": True, "items": []
