@@ -228,6 +228,58 @@ def test_service_action_rejects_unlisted_unit(monkeypatch):
         raise AssertionError("unlisted service must not be controlled")
 
 
+def test_container_action_only_targets_discovered_rootless_container(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "list_rootless_containers", lambda: {
+        "available": True, "items": [{"id": "abc123", "name": "demo", "image": "test"}]
+    })
+    monkeypatch.setattr(main, "container_runtime", lambda: ("podman", "/usr/bin/podman"))
+    monkeypatch.setattr(main, "run_fixed_command", lambda argv, **kwargs: (
+        calls.append(argv) or {"returncode": 0, "stdout": "", "stderr": ""}
+    ))
+
+    response = client.post(
+        "/api/v1/containers/abc123/action",
+        json={"action": "restart"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert calls == [["/usr/bin/podman", "restart", "abc123"]]
+
+
+def test_container_action_rejects_unlisted_container(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "list_rootless_containers", lambda: {
+        "available": True, "items": []
+    })
+    monkeypatch.setattr(main, "container_runtime", lambda: ("podman", "/usr/bin/podman"))
+    monkeypatch.setattr(main, "run_fixed_command", lambda *args, **kwargs: calls.append(args))
+
+    response = client.post(
+        "/api/v1/containers/not-listed/action",
+        json={"action": "stop"},
+    )
+
+    assert response.status_code == 404
+    assert calls == []
+
+
+def test_container_action_handles_runtime_disappearing_after_inventory(monkeypatch):
+    monkeypatch.setattr(main, "list_rootless_containers", lambda: {
+        "available": True, "items": [{"id": "abc123", "name": "demo"}]
+    })
+    monkeypatch.setattr(main, "container_runtime", lambda: None)
+
+    response = client.post(
+        "/api/v1/containers/abc123/action",
+        json={"action": "stop"},
+    )
+
+    assert response.status_code == 503
+    assert "runtime is unavailable" in response.json()["detail"]
+
+
 def test_terminal_runs_only_fixed_diagnostic_command(monkeypatch):
     calls = []
     monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/free")
