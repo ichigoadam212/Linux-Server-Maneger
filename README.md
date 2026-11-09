@@ -28,7 +28,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
 - Server-side API key handling; the browser never receives the key.
 - AI remains advisory-only and cannot execute commands or modify the host.
-- Debian/Ubuntu setup, start, stop, status, diagnostic and recovery scripts.
+- Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Automated backend tests and frontend/shell syntax checks in GitHub Actions.
 
 ## Repository layout
@@ -63,6 +63,12 @@ Run a non-destructive end-to-end check after both services are online:
     bash scripts/smoke-test.sh
 
 The smoke test checks API health, metrics, module endpoints, recovery preflight, and dashboard assets. It does not restart services or change settings.
+
+Run static local security checks:
+
+    bash scripts/security-check.sh
+
+See `docs/OPERATIONS_SECURITY.md` for lifecycle, recovery limits, security boundaries and incident-response steps.
 
 Run controlled recovery:
 
