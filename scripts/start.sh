@@ -48,6 +48,17 @@ api_is_linuxcore() {
   printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("status") == "ok" and d.get("service") == "linuxcore-api" else 1)' >/dev/null 2>&1 && return 0
   return 2
 }
+wait_for_api() {
+  local attempts="${1:-20}"
+  local probe_status
+  for ((attempt=1; attempt<=attempts; attempt++)); do
+    api_is_linuxcore && return 0
+    probe_status=$?
+    if [[ "$probe_status" -eq 2 ]]; then return 2; fi
+    sleep 0.5
+  done
+  return 1
+}
 if api_is_linuxcore; then
   echo "LinuxCore API is already responding."
 else
@@ -66,7 +77,7 @@ else
 fi
 api_ready=false
 web_ready=false
-if wait_for_url "$API_URL" 20; then api_ready=true; echo "API: http://127.0.0.1:8000"; else echo "API did not become ready. Check $RUNTIME/api.log"; fi
+if wait_for_api 20; then api_ready=true; echo "API: http://127.0.0.1:8000"; else echo "API did not become ready as LinuxCore. Check $RUNTIME/api.log"; fi
 if wait_for_url "$WEB_URL" 20; then web_ready=true; echo "Website: http://127.0.0.1:8080"; else echo "Website did not become ready. Check $RUNTIME/web.log"; fi
 echo "Both services bind to localhost only; they are not exposed to your network."
 [[ "$api_ready" == true && "$web_ready" == true ]]
