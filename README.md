@@ -58,6 +58,12 @@ Check both services:
 
     bash scripts/status.sh
 
+Run a non-destructive end-to-end check after both services are online:
+
+    bash scripts/smoke-test.sh
+
+The smoke test checks API health, metrics, module endpoints, recovery preflight, and dashboard assets. It does not restart services or change settings.
+
 Run controlled recovery:
 
     bash scripts/recover.sh
@@ -130,7 +136,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Backend API tests and input-validation tests are part of CI.
 - [x] Frontend JavaScript syntax check is part of CI.
 - [x] All shell scripts, including recovery, are syntax-checked in CI.
-- [ ] Re-run tests on the target phone after pulling the current branch.
+- [ ] Run `bash scripts/smoke-test.sh` on the target phone after pulling the current branch.
 - [ ] Confirm the dashboard in the phone browser.
 - [ ] Verify which user services and rootless container runtime are available on the phone.
 - [ ] Confirm start/stop/recovery behavior after Android backgrounds the Linux app.
