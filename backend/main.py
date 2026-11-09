@@ -324,6 +324,8 @@ def service_action(unit: str, request: ServiceAction):
     if unit not in {item["unit"] for item in inventory["items"]}:
         raise HTTPException(status_code=404, detail="The service is not in the current user-service inventory.")
     systemctl = user_systemctl()
+    if not systemctl:
+        raise HTTPException(status_code=503, detail="The systemd user manager became unavailable before the action could run.")
     result = run_fixed_command([systemctl, "--user", request.action, unit], timeout=20)
     if result["returncode"] != 0:
         raise HTTPException(status_code=502, detail=result["stderr"] or "Service action failed.")
