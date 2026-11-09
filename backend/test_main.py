@@ -6,6 +6,54 @@ from main import app
 client = TestClient(app)
 
 
+def test_fixed_command_runner_uses_argument_vector_and_caps_output(monkeypatch):
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        captured["kwargs"] = kwargs
+        return type("Result", (), {
+            "returncode": 0,
+            "stdout": "x" * 13000,
+            "stderr": "y" * 4000,
+        })()
+
+    monkeypatch.setattr(main.subprocess, "run", fake_run)
+    result = main.run_fixed_command(["/usr/bin/example", "--version"], timeout=3)
+
+    assert captured["argv"] == ["/usr/bin/example", "--version"]
+    assert captured["kwargs"]["capture_output"] is True
+    assert captured["kwargs"]["text"] is True
+    assert captured["kwargs"]["timeout"] == 3
+    assert captured["kwargs"].get("shell", False) is False
+    assert len(result["stdout"]) == 12000
+    assert len(result["stderr"]) == 3000
+
+
+def test_fixed_command_runner_handles_timeout(monkeypatch):
+    def timed_out(*args, **kwargs):
+        raise main.subprocess.TimeoutExpired(args[0], kwargs.get("timeout", 1))
+
+    monkeypatch.setattr(main.subprocess, "run", timed_out)
+    result = main.run_fixed_command(["/usr/bin/example"], timeout=2)
+
+    assert result["returncode"] == 127
+    assert result["stdout"] == ""
+    assert "timed out" in result["stderr"].lower()
+
+
+def test_fixed_command_runner_handles_missing_executable(monkeypatch):
+    def missing(*args, **kwargs):
+        raise FileNotFoundError("executable not found")
+
+    monkeypatch.setattr(main.subprocess, "run", missing)
+    result = main.run_fixed_command(["/missing/example"])
+
+    assert result["returncode"] == 127
+    assert result["stdout"] == ""
+    assert "executable not found" in result["stderr"]
+
+
 def test_health_endpoint():
     response = client.get("/api/v1/health")
     assert response.status_code == 200
