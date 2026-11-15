@@ -1,8 +1,7 @@
 "use strict";
 
-const API_BASE = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname)
-  ? "http://127.0.0.1:8000"
-  : "";
+const IS_LOCAL_HOST = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+const API_BASE = ""; // Both local and hosted dashboards use their same-origin API proxy.
 
 const translations = {
   en: {
@@ -191,7 +190,7 @@ function rate(bytes, oldBytes, seconds) {
 
 function showAuthGate(message) {
   const gate = byId("authGate");
-  if (!gate || API_BASE) return;
+  if (!gate || IS_LOCAL_HOST) return;
   gate.hidden = false;
   gate.style.display = "grid";
   const error = byId("authError");
@@ -211,7 +210,7 @@ function hideAuthGate() {
 
 async function fetchJson(url, options) {
   const response = await fetch(url, { credentials: "same-origin", ...(options || {}) });
-  if (response.status === 401 && !API_BASE) showAuthGate();
+  if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
   if (!response.ok) throw new Error("HTTP " + response.status);
   return response.json();
 }
@@ -748,7 +747,7 @@ async function sendAI() {
       signal: AbortSignal.timeout(40000)
     });
     const data = await response.json();
-    if (response.status === 401 && !API_BASE) showAuthGate();
+    if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
     if (!response.ok) throw new Error(data.detail || "AI request failed");
     if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("AI returned an empty response");
     waiting.remove();
@@ -769,8 +768,8 @@ async function sendAI() {
 }
 
 const logout = byId("logoutBtn");
-if (logout && API_BASE) logout.hidden = true;
-if (logout && !API_BASE) logout.addEventListener("click", async () => {
+if (logout && IS_LOCAL_HOST) logout.hidden = true;
+if (logout && !IS_LOCAL_HOST) logout.addEventListener("click", async () => {
   try {
     await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
   } finally {
@@ -778,7 +777,7 @@ if (logout && !API_BASE) logout.addEventListener("click", async () => {
   }
 });
 
-if (!API_BASE) {
+if (!IS_LOCAL_HOST) {
   const authForm = byId("authForm");
   if (authForm) authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
