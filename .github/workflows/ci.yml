@@ -56,6 +56,9 @@ jobs:
       - name: Test LinuxCore supervisor
         run: bash ../scripts/test-supervisor.sh
 
+      - name: Test systemd user-service installer
+        run: bash ../scripts/test-user-service-installer.sh
+
       - name: Validate frontend JavaScript
         run: node --check ../frontend/app.js
 
