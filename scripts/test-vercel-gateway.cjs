@@ -129,3 +129,24 @@ test("logout expires the session cookie", async () => {
   assert.equal(result.status, 200);
   assert.match(result.headers["set-cookie"], /Max-Age=0/);
 });
+
+
+test("gateway fails closed when server-side secrets are missing", async () => {
+  const handler = createGatewayHandler({ env: {}, now: () => NOW });
+  const login = await invoke(handler, request("/api/auth/login", "POST", {
+    body: { password: "not-a-real-password" }
+  }));
+  assert.equal(login.status, 503);
+});
+
+test("login throttle blocks repeated attempts from one edge client", async () => {
+  const handler = createGatewayHandler({ env: ENV, now: () => NOW });
+  let last;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    last = await invoke(handler, request("/api/auth/login", "POST", {
+      headers: { "x-real-ip": "203.0.113.77" },
+      body: { password: "wrong-password" }
+    }));
+  }
+  assert.equal(last.status, 429);
+});
