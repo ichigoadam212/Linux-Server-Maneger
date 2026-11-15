@@ -18,6 +18,14 @@ else
   fail "Expected loopback-only API and dashboard bindings"
 fi
 
+if grep -Fq 'Refusing to install a user service as root' "$ROOT/scripts/install-user-service.sh" &&
+   grep -Fq 'Refusing to overwrite an existing' "$ROOT/scripts/install-user-service.sh" &&
+   grep -Fq 'systemd could not enable/start LinuxCore' "$ROOT/scripts/install-user-service.sh"; then
+  ok "User-service installer refuses root/overwrite and rolls back failed installation"
+else
+  fail "User-service installer safety guards are missing"
+fi
+
 if [[ -f "$ROOT/scripts/linuxcore-supervisor.sh" &&
       -f "$ROOT/scripts/install-user-service.sh" ]] &&
    grep -Fq 'systemctl --user' "$ROOT/scripts/install-user-service.sh" &&
@@ -57,7 +65,8 @@ if [[ -f "$ROOT/api/_lib/gateway.js" && -f "$ROOT/api/[...path].js" ]] &&
    grep -Fq 'HttpOnly; Secure; SameSite=Strict' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'redirect: "manual"' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'safeUpstream' "$ROOT/api/_lib/gateway.js" &&
-   grep -Fq 'API_RULES' "$ROOT/api/_lib/gateway.js"; then
+   grep -Fq 'API_RULES' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'SLEEP_PID=' "$ROOT/scripts/linuxcore-supervisor.sh"; then
   ok "Vercel gateway uses secure sessions, HTTPS upstream validation and allowlisted routes"
 else
   fail "Vercel gateway security boundary is missing or incomplete"
