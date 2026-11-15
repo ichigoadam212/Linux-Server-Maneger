@@ -27,13 +27,13 @@ bash scripts/stop.sh
 
 LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1`; local dashboard requests continue to work without a remote token.
 
-If the API is deliberately placed behind a trusted HTTPS reverse proxy or a server-side gateway, configure `LINUXCORE_ACCESS_TOKEN` in the backend environment with a random value of at least 32 characters. Every non-loopback `/api/*` request must then include:
+If the API is deliberately placed behind a trusted HTTPS reverse proxy or a server-side gateway, configure `LINUXCORE_ACCESS_TOKEN` in the backend environment with a random value of at least 32 characters. Every `/api/*` request must then include a bearer token, including requests arriving through a localhost reverse proxy (which prevents a proxy from becoming an authentication bypass):
 
 ```http
 Authorization: Bearer <LINUXCORE_ACCESS_TOKEN>
 ```
 
-When the token is missing or shorter than 32 characters, remote API requests are rejected. A configured token is compared in constant time. The API does not trust `X-Forwarded-For` to decide whether a request is local. Keep the token only in the Linux backend environment and the gateway's encrypted server-side environment; never put it in frontend JavaScript, Git, a URL, or a client-visible response.
+When the token is missing or shorter than 32 characters, remote API requests are rejected; a configured but weak token also fails closed. Once a token is configured, loopback requests must present it too. A configured token is compared in constant time. The API does not trust `X-Forwarded-For` to decide whether a request is local. Keep the token only in the Linux backend environment and the gateway's encrypted server-side environment; never put it in frontend JavaScript, Git, a URL, or a client-visible response.
 
 Generate a token on the server without sharing it:
 
