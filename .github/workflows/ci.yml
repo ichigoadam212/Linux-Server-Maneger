@@ -63,7 +63,6 @@ jobs:
         run: bash ../scripts/security-check.sh
 
       - name: Run local end-to-end smoke test
-        working-directory: .
         run: |
           set -euo pipefail
           python -m uvicorn main:app --host 127.0.0.1 --port 8000 >/tmp/linuxcore-api.log 2>&1 &
