@@ -62,5 +62,26 @@ jobs:
       - name: Run local security checks
         run: bash ../scripts/security-check.sh
 
+      - name: Run local end-to-end smoke test
+        working-directory: .
+        run: |
+          set -euo pipefail
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 >/tmp/linuxcore-api.log 2>&1 &
+          API_PID=$!
+          python -m http.server 8080 --directory ../frontend --bind 127.0.0.1 >/tmp/linuxcore-web.log 2>&1 &
+          WEB_PID=$!
+          trap 'kill "$WEB_PID" "$API_PID" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:8000/api/v1/health >/dev/null &&
+               curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 0.5
+          done
+          [[ "$ready" == true ]] || { cat /tmp/linuxcore-api.log /tmp/linuxcore-web.log; exit 1; }
+          bash ../scripts/smoke-test.sh
+
       - name: Run backend tests
         run: pytest -q

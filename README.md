@@ -146,7 +146,8 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - [x] Backend API tests and input-validation tests are part of CI.
 - [x] Frontend JavaScript syntax check is part of CI.
-- [x] All shell scripts, including recovery, are syntax-checked in CI.
+- [x] All shell scripts, including recovery and shutdown, are syntax-checked in CI.
+- [x] CI starts an isolated loopback API/dashboard pair and runs the full non-destructive smoke test.
 - [ ] Run `bash scripts/smoke-test.sh` on the target phone after pulling the current branch.
 - [ ] Confirm the dashboard in the phone browser.
 - [ ] Verify which user services and rootless container runtime are available on the phone.

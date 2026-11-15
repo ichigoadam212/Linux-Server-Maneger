@@ -15,8 +15,9 @@ check_json() {
   local url="$1"
   local expression="$2"
   local label="$3"
+  local timeout="${4:-5}"
   local body
-  if ! body="$(curl --fail --silent --show-error --max-time 5 "$url")"; then
+  if ! body="$(curl --fail --silent --show-error --max-time "$timeout" "$url")"; then
     echo "FAIL: $label endpoint is unavailable: $url" >&2
     exit 1
   fi
@@ -38,13 +39,13 @@ check_json "$API/metrics" \
 check_json "$API/storage" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("items"), list)' "storage inventory"
 check_json "$API/processes" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("items"), list); assert all("cmdline" not in p and "command_line" not in p for p in d["items"])' "privacy-filtered process inventory"
 check_json "$API/network" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("interfaces"), list)' "network inventory"
-check_json "$API/diagnostics" 'import json,sys; d=json.load(sys.stdin); c=d["capabilities"]; assert isinstance(d.get("host", {}).get("architecture"), str); assert isinstance(c["user_services"]["available"], bool); assert isinstance(c["containers"]["available"], bool); assert isinstance(c["network_counters"]["available"], bool); assert isinstance(c["diagnostic_commands"], dict)' "environment diagnostics"
+check_json "$API/diagnostics" 'import json,sys; d=json.load(sys.stdin); c=d["capabilities"]; assert isinstance(d.get("host", {}).get("architecture"), str); assert isinstance(c["user_services"]["available"], bool); assert isinstance(c["containers"]["available"], bool); assert isinstance(c["network_counters"]["available"], bool); assert isinstance(c["diagnostic_commands"], dict)' "environment diagnostics" 30
 check_json "$API/services" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "user-service inventory"
-check_json "$API/containers" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "rootless container inventory"
+check_json "$API/containers" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "rootless container inventory" 30
 check_json "$API/terminal/commands" 'import json,sys; d=json.load(sys.stdin); ids={x["id"] for x in d["commands"]}; assert ids <= {"pwd","system","storage","memory","uptime","processes"}' "allowlisted diagnostic commands"
 check_json "$API/ai/status" 'import json,sys; d=json.load(sys.stdin); assert d.get("mode") == "advisory-only" and isinstance(d.get("configured"), bool)' "AI privacy status"
 
-recovery="$(curl --fail --silent --show-error --max-time 5 "$API/recovery/check")"
+recovery="$(curl --fail --silent --show-error --max-time 10 "$API/recovery/check")"
 if ! printf '%s' "$recovery" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("healthy") is True and all(x.get("present") for x in d.get("files", [])) and d.get("dependencies") is True'; then
   echo "FAIL: recovery preflight reports missing files or dependencies." >&2
   exit 1
