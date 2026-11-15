@@ -122,8 +122,10 @@ function safeUpstream(value) {
 }
 
 function loginRateLimited(req, now) {
-  const forwarded = String((req.headers || {})["x-real-ip"] || "").trim();
-  const key = forwarded || "unknown-client";
+  const clientIp = String((req.headers || {})["x-real-ip"] || "").trim();
+  // Do not place every visitor into one shared bucket when the edge IP header is absent.
+  if (!clientIp) return false;
+  const key = clientIp;
   const current = loginAttempts.get(key) || { count: 0, start: now };
   if (now - current.start >= LOGIN_WINDOW_SECONDS || now < current.start) {
     current.count = 0;
