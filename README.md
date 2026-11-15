@@ -144,14 +144,15 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 ## Validation checklist
 
-- [x] Backend API tests and input-validation tests are part of CI.
-- [x] Frontend JavaScript syntax check is part of CI.
-- [x] All shell scripts, including recovery and shutdown, are syntax-checked in CI.
-- [x] CI starts an isolated loopback API/dashboard pair and runs the full non-destructive smoke test.
-- [ ] Run `bash scripts/smoke-test.sh` on the target phone after pulling the current branch.
-- [ ] Confirm the dashboard in the phone browser.
-- [ ] Verify which user services and rootless container runtime are available on the phone.
-- [ ] Confirm start/stop/recovery behavior after Android backgrounds the Linux app.
+- [x] Backend API and input-validation tests pass in CI.
+- [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
+- [x] Shell syntax, startup API/dashboard identity, recovery rollback and safe shutdown tests pass in CI.
+- [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
+- [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
+- [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
+- [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
+- [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
+- [ ] **Final device stage:** verify start/stop/recovery and background/resume behavior on Android.
 
 ## License
 
