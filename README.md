@@ -170,7 +170,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - [x] Backend API and input-validation tests pass in CI.
 - [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [x] Shell syntax, startup API/dashboard identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests pass in CI (pending latest run confirmation).
+- [ ] Confirm latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests.
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
 - [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
