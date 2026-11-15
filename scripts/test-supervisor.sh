@@ -15,7 +15,11 @@ cat > "$TEST_ROOT/status.sh" <<'STATUS'
 #!/usr/bin/env bash
 exit 1
 STATUS
-chmod +x "$TEST_ROOT/start.sh" "$TEST_ROOT/status.sh"
+cat > "$TEST_ROOT/stop.sh" <<'STOP'
+#!/usr/bin/env bash
+touch "$TEST_ROOT/stop-called"
+STOP
+chmod +x "$TEST_ROOT/start.sh" "$TEST_ROOT/status.sh" "$TEST_ROOT/stop.sh"
 
 if LINUXCORE_START_SCRIPT="$TEST_ROOT/start.sh" \
    LINUXCORE_STATUS_SCRIPT="$TEST_ROOT/status.sh" \
@@ -25,6 +29,7 @@ if LINUXCORE_START_SCRIPT="$TEST_ROOT/start.sh" \
   echo "FAIL: supervisor should exit after its configured consecutive failure limit." >&2
   exit 1
 fi
+[[ -f "$TEST_ROOT/stop-called" ]] || { echo "FAIL: supervisor did not invoke safe child-service cleanup." >&2; exit 1; }
 grep -Fq "reached its failure limit" "$TEST_ROOT/output.log" || {
   echo "FAIL: supervisor did not report its bounded failure exit." >&2
   cat "$TEST_ROOT/output.log" >&2
