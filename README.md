@@ -58,9 +58,11 @@ Open the dashboard on the same device:
 
     http://127.0.0.1:8080
 
-Backend health:
+Backend health (direct API requests require the configured bearer token once remote protection is enabled):
 
     http://127.0.0.1:8000/api/v1/health
+
+For local checks that read the token safely from backend/.env, use bash scripts/status.sh or bash scripts/smoke-test.sh. The browser dashboard uses the same-origin loopback proxy and never receives the token.
 
 Check both services:
 
