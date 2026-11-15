@@ -26,7 +26,7 @@ const blockedIPv6 = new net.BlockList();
   ["100::", 64], ["2001:db8::", 32], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]
 ].forEach(([address, prefix]) => blockedIPv6.addSubnet(address, prefix, "ipv6"));
 const nonGlobalIPv6 = new net.BlockList();
-[["::", 1], ["4000::", 2], ["8000::", 1]].forEach(([address, prefix]) =>
+[["::", 3], ["4000::", 2], ["8000::", 1]].forEach(([address, prefix]) =>
   nonGlobalIPv6.addSubnet(address, prefix, "ipv6")
 );
 
