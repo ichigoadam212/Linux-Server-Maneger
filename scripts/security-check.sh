@@ -18,6 +18,15 @@ else
   fail "Expected loopback-only API and dashboard bindings"
 fi
 
+if [[ -f "$ROOT/scripts/linuxcore-supervisor.sh" &&
+      -f "$ROOT/scripts/install-user-service.sh" ]] &&
+   grep -Fq 'systemctl --user' "$ROOT/scripts/install-user-service.sh" &&
+   ! grep -Eq 'sudo|0\.0\.0\.0' "$ROOT/scripts/linuxcore-supervisor.sh" "$ROOT/scripts/install-user-service.sh"; then
+  ok "Optional user service is unprivileged and does not add public bindings"
+else
+  fail "Supervisor/service installer is missing or exceeds user-level scope"
+fi
+
 if grep -Eq 'shell[[:space:]]*=[[:space:]]*True' "$ROOT/backend/main.py"; then
   fail "Shell execution is enabled in backend/main.py"
 else
