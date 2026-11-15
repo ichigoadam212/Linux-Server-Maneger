@@ -25,9 +25,9 @@ bash scripts/stop.sh
 
 ## Remote API access boundary
 
-LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1`; local dashboard requests continue to work without a remote token.
+LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1` and serves the dashboard through `scripts/local-web.py` on `127.0.0.1:8080`. The local proxy accepts only fixed API paths, forwards requests to the fixed backend origin, and adds the optional bearer token server-side from `backend/.env`. The browser talks only to the same-origin proxy; it never receives the backend token.
 
-If the API is deliberately placed behind a trusted HTTPS reverse proxy or a server-side gateway, configure `LINUXCORE_ACCESS_TOKEN` in the backend environment with a random value of at least 32 characters. Every `/api/*` request must then include a bearer token, including requests arriving through a localhost reverse proxy (which prevents a proxy from becoming an authentication bypass):
+If the API is deliberately placed behind a trusted HTTPS reverse proxy or a server-side gateway, configure `LINUXCORE_ACCESS_TOKEN` in the backend environment with a random URL-safe value of at least 32 characters. Every `/api/*` request must then include a bearer token, including requests arriving through a localhost reverse proxy:
 
 ```http
 Authorization: Bearer <LINUXCORE_ACCESS_TOKEN>
@@ -35,7 +35,7 @@ Authorization: Bearer <LINUXCORE_ACCESS_TOKEN>
 
 When the token is missing or shorter than 32 characters, remote API requests are rejected; a configured but weak token also fails closed. Once a token is configured, loopback requests must present it too. A configured token is compared in constant time. The API does not trust `X-Forwarded-For` to decide whether a request is local. Keep the token only in the Linux backend environment and the gateway's encrypted server-side environment; never put it in frontend JavaScript, Git, a URL, or a client-visible response.
 
-The repository's local startup identity probe, status command, recovery check and smoke test read this single assignment without sourcing or executing `backend/.env` and add the bearer header only when a token is configured. Keep generated tokens URL-safe so these local probes can parse them safely. The helper does not print the token or put it in the curl command-line arguments.
+The repository's local startup identity probe, status command, recovery check and smoke test read this single assignment without sourcing or executing `backend/.env` and add the bearer header only when a token is configured. The local dashboard proxy also reads the token server-side using the dotenv parser and keeps it out of the browser. Keep generated tokens URL-safe so the shell probes can parse them safely. The helper does not print the token or put it in the curl command-line arguments.
 
 Generate a token on the server without sharing it:
 
