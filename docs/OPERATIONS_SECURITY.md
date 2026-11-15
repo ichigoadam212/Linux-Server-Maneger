@@ -25,6 +25,8 @@ bash scripts/stop.sh
 
 ## Validation
 
+The Security page reads `GET /api/v1/diagnostics` to show live capability checks for the current user-space: process privilege level, architecture, Python version, systemd user-manager availability, rootless container runtime, network counters, and the fixed diagnostic tools. Optional host capabilities may be unavailable in PRoot; this is reported as unavailable rather than treated as a project failure.
+
 Run the local static security checks:
 
 ```bash
