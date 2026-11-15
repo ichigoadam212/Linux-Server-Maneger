@@ -5,6 +5,10 @@ const crypto = require("node:crypto");
 const COOKIE = "__Host-linuxcore_session";
 const SESSION_SECONDS = 8 * 60 * 60;
 const MAX_BODY_BYTES = 128 * 1024;
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+const LOGIN_MAX_ATTEMPTS = 5;
+const loginAttempts = new Map();
+
 const API_RULES = [
   [/^\/api\/v1\/(health|metrics|diagnostics|storage|processes|network)$/, "GET"],
   [/^\/api\/v1\/services$/, "GET"],
@@ -115,6 +119,22 @@ function safeUpstream(value) {
   }
 }
 
+function loginRateLimited(req, now) {
+  const forwarded = String((req.headers || {})["x-forwarded-for"] || "").split(",")[0].trim();
+  const key = forwarded || "unknown-client";
+  const current = loginAttempts.get(key) || { count: 0, start: now };
+  if (now - current.start >= LOGIN_WINDOW_SECONDS || now < current.start) {
+    current.count = 0;
+    current.start = now;
+  }
+  current.count += 1;
+  loginAttempts.set(key, current);
+  for (const [client, entry] of loginAttempts) {
+    if (now - entry.start >= LOGIN_WINDOW_SECONDS || now < entry.start) loginAttempts.delete(client);
+  }
+  return current.count > LOGIN_MAX_ATTEMPTS;
+}
+
 function createGatewayHandler(options) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || fetch;
@@ -137,6 +157,7 @@ function createGatewayHandler(options) {
     if (path === "/api/auth/login") {
       if (method !== "POST") return json(res, 405, { detail: "Method not allowed." }, { Allow: "POST" });
       if (!validOrigin(req)) return json(res, 403, { detail: "Request origin rejected." });
+      if (loginRateLimited(req, now())) return json(res, 429, { detail: "Too many sign-in attempts. Try again later." }, { "Retry-After": String(LOGIN_WINDOW_SECONDS) });
       if (secret.length < 32 || password.length < 12) return json(res, 503, { detail: "Gateway login is not configured securely." });
       const raw = bodyBuffer(req);
       if (raw.length > 4096) return json(res, 413, { detail: "Request body too large." });
@@ -164,6 +185,7 @@ function createGatewayHandler(options) {
     }
 
     if (!path.startsWith("/api/v1/")) return json(res, 404, { detail: "Not found." });
+    if (method === "POST" && !validOrigin(req)) return json(res, 403, { detail: "Request origin rejected." });
     if (!authenticated) return json(res, 401, { detail: "Authentication required." });
     const rule = API_RULES.find(([pattern, allowedMethod]) => pattern.test(path) && allowedMethod === method);
     if (!rule) return json(res, 404, { detail: "API route or method is not allowed by the gateway." });
@@ -207,6 +229,6 @@ function createGatewayHandler(options) {
 }
 
 module.exports = {
-  COOKIE, SESSION_SECONDS, API_RULES, createGatewayHandler,
+  COOKIE, SESSION_SECONDS, API_RULES, createGatewayHandler, loginRateLimited,
   validSession, safeUpstream, requestPath, validOrigin
 };
