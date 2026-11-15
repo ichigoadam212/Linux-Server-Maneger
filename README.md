@@ -180,7 +180,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
 - [x] Latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/graceful-shutdown and systemd user-service installer guard/rollback tests.
 - [x] Remote API tests verify default-deny, bearer-token validation, weak-token rejection, forwarded-IP spoofing resistance and loopback-proxy token enforcement.
-- [x] CI starts an isolated loopback API plus the same-origin dashboard/API proxy and passes the full non-destructive smoke test.
+- [x] CI starts an isolated loopback API plus the same-origin dashboard/API proxy and passes the full non-destructive smoke test both without a token and with a configured bearer token.
 - [x] Local dashboard proxy tests cover server-side token forwarding, fixed loopback origin, allowlisted paths, body limits, dotenv parsing and no redirects.
 - [x] Local startup/status/recovery/smoke probes support configured backend bearer tokens without exposing them to browser code.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
