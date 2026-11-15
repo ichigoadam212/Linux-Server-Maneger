@@ -57,56 +57,9 @@ else
 fi
 
 if command -v git >/dev/null 2>&1; then
-  if git -C "$ROOT" ls-files | grep -E '(^|/)\.env($|\.)' | grep -Ev '\.env\.example
-else
-  warn "Git is unavailable; tracked-secret check was skipped"
-fi
-
-ENV_FILE="$ROOT/backend/.env"
-if [[ -f "$ENV_FILE" ]]; then
-  if command -v stat >/dev/null 2>&1; then
-    MODE="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || true)"
-    if [[ "$MODE" =~ ^[0-7]{3,4}$ ]] && (( (8#$MODE & 077) == 0 )); then
-      ok "backend/.env has owner-only permissions"
-    else
-      fail "backend/.env permissions are too broad (expected 600 or stricter)"
-    fi
-  else
-    warn "Could not inspect backend/.env permissions"
-  fi
-else
-  ok "No local backend/.env file is present"
-fi
-
-if bash -n "$ROOT"/scripts/*.sh "$ROOT"/scripts/lib/*.sh; then
-  ok "Shell scripts pass syntax validation"
-else
-  fail "Shell script syntax validation failed"
-fi
-
-if command -v python3 >/dev/null 2>&1; then
-  if python3 -m compileall -q "$ROOT/backend"; then
-    ok "Backend Python files compile"
-  else
-    fail "Backend Python compilation failed"
-  fi
-else
-  fail "python3 is required"
-fi
-
-if command -v node >/dev/null 2>&1; then
-  if node --check "$ROOT/frontend/app.js"; then
-    ok "Frontend JavaScript passes syntax validation"
-  else
-    fail "Frontend JavaScript syntax validation failed"
-  fi
-else
-  warn "Node.js unavailable; frontend syntax check skipped"
-fi
-
-printf '\nSecurity checks: %s failure(s), %s warning(s).\n' "$FAILED" "$WARNINGS"
-[[ "$FAILED" -eq 0 ]]
- >/dev/null; then
+  if git -C "$ROOT" ls-files |
+      grep -E '(^|/)\.env($|\.|rc$)' |
+      grep -Ev '\.env\.example$' >/dev/null; then
     fail "A populated or non-example environment file is tracked by Git"
   else
     ok "No populated environment file is tracked by Git"
