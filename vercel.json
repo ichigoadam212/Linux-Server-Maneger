@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "echo LinuxCore static dashboard",
   "outputDirectory": "frontend",
+  "functions": {
+    "api/[...path].js": {
+      "maxDuration": 60
+    }
+  },
   "cleanUrls": true,
   "headers": [
     {
