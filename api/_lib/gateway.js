@@ -120,7 +120,7 @@ function safeUpstream(value) {
 }
 
 function loginRateLimited(req, now) {
-  const forwarded = String((req.headers || {})["x-forwarded-for"] || "").split(",")[0].trim();
+  const forwarded = String((req.headers || {})["x-real-ip"] || "").trim();
   const key = forwarded || "unknown-client";
   const current = loginAttempts.get(key) || { count: 0, start: now };
   if (now - current.start >= LOGIN_WINDOW_SECONDS || now < current.start) {
