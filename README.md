@@ -170,10 +170,10 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - [x] Backend API and input-validation tests pass in CI.
 - [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [x] Shell syntax, startup API/dashboard identity, recovery rollback and safe shutdown tests pass in CI.
+- [x] Shell syntax, startup API/dashboard identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests pass in CI (pending latest run confirmation).
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
-- [ ] Validate supervisor recovery and systemd user-service installation on a compatible Linux host (automated supervisor retry tests run in CI).
+- [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
