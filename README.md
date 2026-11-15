@@ -153,7 +153,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - AI is advisory-only and must not be treated as an execution agent.
 - Recovery operates only on this repository's own local startup scripts and backs up the backend environment file before running them.
 - Never commit API keys, passwords, private keys or populated environment files.
-- Do not expose this development service to a public network. Remote access requires a separate authenticated design, TLS, authorization, rate limiting, audit logging and secure secret storage.
+- The default API remains loopback-only. Remote API requests fail closed unless a strong server-side bearer token is configured; a public dashboard still needs a user login/session gateway, TLS, rate limiting, audit logging and secure secret storage.
 
 ## Environment-specific limitations
 
@@ -172,10 +172,13 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - [x] Backend API and input-validation tests pass in CI.
 - [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [ ] Confirm latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests.
+- [x] Latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests.
+- [x] Remote API tests verify default-deny, bearer-token validation, weak-token rejection, forwarded-IP spoofing resistance and loopback-proxy token enforcement.
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
 - [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
+- [ ] Finish the authenticated Vercel gateway/login and link a protected Preview project. No LinuxCore Vercel project or public deployment has been created.
+- [ ] Configure the VPS upstream URL and server-side secrets after the host and gateway are approved.
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
