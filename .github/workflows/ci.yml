@@ -4,7 +4,8 @@ on:
   push:
     branches: [main, "fix/**", "feat/**", "test/**"]
   pull_request:
-    branches: [main]
+    # PR #17 is intentionally stacked on the diagnostics branch until PR #16 lands.
+    branches: [main, "fix/**"]
   workflow_dispatch:
 
 permissions:
