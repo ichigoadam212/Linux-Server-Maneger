@@ -21,6 +21,7 @@ CURL
 chmod +x "$TEST_ROOT/bin/curl"
 export PATH="$TEST_ROOT/bin:$PATH"
 export LINUXCORE_ROOT="$TEST_ROOT/repo"
+source "$TEST_ROOT/repo/scripts/lib/api-auth.sh"
 
 unset LINUXCORE_ACCESS_TOKEN || true
 result="$(linuxcore_curl --silent http://127.0.0.1:8000/api/v1/health 2>/dev/null)" 2>/dev/null || true
@@ -29,7 +30,6 @@ result="$(linuxcore_curl --silent http://127.0.0.1:8000/api/v1/health 2>/dev/nul
 TOKEN_FROM_FILE="A1_b2-C3_d4-E5_f6-G7_h8-I9_j0-K1_l2-M3_n4"
 printf 'LINUXCORE_ACCESS_TOKEN="%s"\ntouch %s\n' "$TOKEN_FROM_FILE" "$TEST_ROOT/should-not-exist" > "$TEST_ROOT/repo/backend/.env"
 export EXPECTED_TOKEN="$TOKEN_FROM_FILE"
-source "$TEST_ROOT/repo/scripts/lib/api-auth.sh"
 result="$(linuxcore_curl --silent http://127.0.0.1:8000/api/v1/health)"
 [[ "$result" == "authenticated" ]] || { echo "FAIL: .env token was not added to the curl request." >&2; exit 1; }
 [[ ! -e "$TEST_ROOT/should-not-exist" ]] || { echo "FAIL: backend/.env was executed." >&2; exit 1; }
