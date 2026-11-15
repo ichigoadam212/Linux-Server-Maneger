@@ -1,10 +1,14 @@
 # Shared API identity probes used by the startup script and isolated tests.
 # API_URL must point to LinuxCore's health endpoint.
 api_is_linuxcore() {
-  local body
-  body="$(curl --fail --silent --max-time 1 "$API_URL" 2>/dev/null)" || return 1
+  local response http_code body
+  response="$(curl --silent --show-error --max-time 1 --write-out $'\n%{http_code}' "$API_URL" 2>/dev/null)" || return 1
+  http_code="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+  # A responding HTTP endpoint with a non-success status is not our API.
+  [[ "$http_code" == "200" ]] || return 2
   printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("status") == "ok" and d.get("service") == "linuxcore-api" else 1)' >/dev/null 2>&1 && return 0
-  # A responding endpoint with an unexpected/malformed identity is not ours.
+  # A successful response with an unexpected/malformed identity is not ours.
   return 2
 }
 
