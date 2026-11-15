@@ -15,6 +15,7 @@ case "$*" in
     [[ "${FAKE_SYSTEMD_USER_AVAILABLE:-1}" == "1" ]]
     ;;
   "--user daemon-reload")
+    if [[ "${FAKE_SYSTEMD_RELOAD_FAIL:-0}" == "1" ]]; then exit 92; fi
     touch "$TEST_ROOT/daemon-reload"
     ;;
   "--user enable --now linuxcore.service")
@@ -63,6 +64,26 @@ grep -Fxq "user-owned unit" "$TEST_ROOT/config/systemd/user/linuxcore.service" |
 
 rm -rf "$TEST_ROOT/config/systemd"
 if PATH="$TEST_ROOT/bin:$PATH" \
+   XDG_CONFIG_HOME="relative-config" \
+   bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/relative-path.log" 2>&1; then
+  echo "FAIL: installer accepted a relative XDG_CONFIG_HOME path." >&2
+  exit 1
+fi
+
+if PATH="$TEST_ROOT/bin:$PATH" \
+   XDG_CONFIG_HOME="$TEST_ROOT/config" \
+   FAKE_SYSTEMD_RELOAD_FAIL=1 \
+   bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/reload-failure.log" 2>&1; then
+  echo "FAIL: installer ignored a failed systemd daemon-reload." >&2
+  exit 1
+fi
+[[ ! -e "$TEST_ROOT/config/systemd/user/linuxcore.service" ]] || {
+  echo "FAIL: daemon-reload failure left a partial user unit." >&2
+  exit 1
+}
+
+rm -rf "$TEST_ROOT/config/systemd"
+if PATH="$TEST_ROOT/bin:$PATH" \
    XDG_CONFIG_HOME="$TEST_ROOT/config" \
    FAKE_SYSTEMD_ENABLE_FAIL=1 \
    bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/enable-failure.log" 2>&1; then
@@ -91,4 +112,5 @@ fi
   exit 1
 }
 
-echo "LinuxCore user-service installer tests passed (unit content, permissions, enablement, overwrite refusal, rollback and unavailable-manager refusal)."
+grep -Fq 'Refusing to install a user service as root' "$SOURCE_ROOT/scripts/install-user-service.sh"
+echo "LinuxCore user-service installer tests passed (unit content, permissions, root guard, absolute paths, overwrite refusal, daemon-reload/start rollback and unavailable-manager refusal)."
