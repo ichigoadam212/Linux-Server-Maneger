@@ -23,6 +23,31 @@ To stop LinuxCore:
 bash scripts/stop.sh
 ```
 
+## Persistent user-level operation
+
+On a Linux host with a reachable systemd user manager, install the optional service:
+
+```bash
+bash scripts/install-user-service.sh
+systemctl --user status linuxcore.service
+```
+
+The unit runs as the current unprivileged user. It starts the existing loopback-only API and dashboard, then the foreground supervisor periodically verifies both. Repeated failures cause the supervisor to exit so systemd can apply its bounded restart policy. The installer does not enable lingering, grant root privileges, alter firewall rules, or expose ports publicly.
+
+To disable it:
+
+```bash
+systemctl --user disable --now linuxcore.service
+```
+
+If systemd user sessions are unavailable (common in PRoot/Andronix), use the foreground fallback:
+
+```bash
+bash scripts/linuxcore-supervisor.sh run
+```
+
+Keep the Linux session alive. The supervisor uses a 10-second default check interval and exits after five consecutive failed checks; both values have bounded environment-variable overrides. This fallback is not a daemon and cannot survive Android suspending or killing its parent Linux environment. Do not start more than one supervisor for the same repository.
+
 ## Validation
 
 The Security page reads `GET /api/v1/diagnostics` to show live capability checks for the current user-space: process privilege level, architecture, Python version, systemd user-manager availability, rootless container runtime, network counters, and the fixed diagnostic tools. Optional host capabilities may be unavailable in PRoot; this is reported as unavailable rather than treated as a project failure.
@@ -43,7 +68,7 @@ Run backend tests:
 backend/.venv/bin/python -m pytest backend/test_main.py -v
 ```
 
-The security script checks loopback binding declarations, obvious unsafe subprocess/CORS patterns, tracked populated environment files, local environment-file permissions, shell syntax, Python compilation, and frontend JavaScript syntax when Node.js is installed. These are guardrails, not a full penetration test or proof that the host is secure.
+The security script checks loopback binding declarations, the unprivileged service-installer boundary, obvious unsafe subprocess/CORS patterns, tracked populated environment files, local environment-file permissions, shell syntax, Python compilation, and frontend JavaScript syntax when Node.js is installed. These are guardrails, not a full penetration test or proof that the host is secure.
 
 ## Recovery behavior and limits
 
