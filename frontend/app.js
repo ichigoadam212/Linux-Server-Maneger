@@ -1,5 +1,9 @@
 "use strict";
 
+const API_BASE = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname)
+  ? API_BASE + ""
+  : "";
+
 const translations = {
   en: {
     workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
@@ -194,7 +198,7 @@ async function fetchJson(url, options) {
 async function loadMetrics(showToast) {
   const requestId = ++metricsRequestId;
   try {
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/metrics", {
+    const data = await fetchJson(API_BASE + "/api/v1/metrics", {
       cache: "no-store",
       signal: AbortSignal.timeout(5000)
     });
@@ -262,8 +266,8 @@ async function loadOverviewPanels() {
   serviceRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
   capabilityRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
   const results = await Promise.allSettled([
-    fetchJson("http://127.0.0.1:8000/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
-    fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {cache:"no-store", signal:AbortSignal.timeout(30000)})
+    fetchJson(API_BASE + "/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
+    fetchJson(API_BASE + "/api/v1/diagnostics", {cache:"no-store", signal:AbortSignal.timeout(30000)})
   ]);
   if (requestId !== overviewRequestId || currentPage !== "overview") return;
   serviceRoot.replaceChildren();
@@ -416,7 +420,7 @@ async function renderModule(page) {
 
   if (page === "security") {
     try {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {
+      const data = await fetchJson(API_BASE + "/api/v1/diagnostics", {
         cache: "no-store", signal: AbortSignal.timeout(30000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -458,7 +462,7 @@ async function renderModule(page) {
 
   try {
     if (page === "services") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/services", {
+      const data = await fetchJson(API_BASE + "/api/v1/services", {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -477,7 +481,7 @@ async function renderModule(page) {
             isArabic ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
             async () => {
               try {
-                await postJson("http://127.0.0.1:8000/api/v1/services/" +
+                await postJson(API_BASE + "/api/v1/services/" +
                   encodeURIComponent(item.unit) + "/action", {action}, 25000);
                 toast(isArabic ? "تم إرسال الإجراء للخدمة" : "Service action completed");
                 renderModule("services");
@@ -492,7 +496,7 @@ async function renderModule(page) {
     }
 
     if (page === "containers") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/containers", {
+      const data = await fetchJson(API_BASE + "/api/v1/containers", {
         cache: "no-store", signal: AbortSignal.timeout(12000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -511,7 +515,7 @@ async function renderModule(page) {
             ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
           async () => {
             try {
-              await postJson("http://127.0.0.1:8000/api/v1/containers/" +
+              await postJson(API_BASE + "/api/v1/containers/" +
                 encodeURIComponent(item.id || item.name) + "/action", {action}, 35000);
               toast(isArabic ? "تم تنفيذ الإجراء" : "Container action completed");
               renderModule("containers");
@@ -541,7 +545,7 @@ async function renderModule(page) {
         actions.append(moduleActionButton(labels[command], async () => {
           output.textContent = isArabic ? "جاري التنفيذ..." : "Running diagnostic...";
           try {
-            const data = await postJson("http://127.0.0.1:8000/api/v1/terminal/run", {command}, 12000);
+            const data = await postJson(API_BASE + "/api/v1/terminal/run", {command}, 12000);
             output.textContent = data.output || (isArabic ? "لا يوجد ناتج." : "No output.");
           } catch (error) { output.textContent = error.message || t("apiUnavailable"); }
         }));
@@ -551,7 +555,7 @@ async function renderModule(page) {
     }
 
     if (page === "recovery") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/recovery/check", {
+      const data = await fetchJson(API_BASE + "/api/v1/recovery/check", {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -576,7 +580,7 @@ async function renderModule(page) {
         const button = event.currentTarget;
         button.disabled = true;
         try {
-          const result = await postJson("http://127.0.0.1:8000/api/v1/recovery/run", {}, 70000);
+          const result = await postJson(API_BASE + "/api/v1/recovery/run", {}, 70000);
           moduleNotice(result.output || (isArabic ? "اكتملت الاستعادة." : "Recovery completed."));
           toast(isArabic ? "اكتملت الاستعادة" : "Recovery completed");
         } catch (error) {
@@ -587,7 +591,7 @@ async function renderModule(page) {
     }
 
     if (page === "settings") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+      const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
         cache: "no-store", signal: AbortSignal.timeout(8000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -610,7 +614,7 @@ async function renderModule(page) {
     const endpoints = { storage: "storage", processes: "processes", network: "network" };
     const endpoint = endpoints[page];
     if (!endpoint) { moduleNotice(t("noData")); return; }
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/" + endpoint, {
+    const data = await fetchJson(API_BASE + "/api/v1/" + endpoint, {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -666,7 +670,7 @@ async function checkAIStatus() {
   const setup = byId("aiSetup");
   if (!status || !setup) return;
   try {
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+    const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     aiConfigured = data.configured === true;
@@ -712,7 +716,7 @@ async function sendAI() {
   messages.append(waiting);
 
   try {
-    const response = await fetch("http://127.0.0.1:8000/api/v1/ai/chat", {
+    const response = await fetch(API_BASE + "/api/v1/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
