@@ -53,6 +53,9 @@ jobs:
       - name: Test safe service shutdown
         run: bash ../scripts/test-stop.sh
 
+      - name: Test LinuxCore supervisor
+        run: bash ../scripts/test-supervisor.sh
+
       - name: Validate frontend JavaScript
         run: node --check ../frontend/app.js
 
