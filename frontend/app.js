@@ -122,8 +122,7 @@ function applyLanguage() {
   setText("aiPrivacy", t("aiPrivacy"));
   setText("aiTitle", t("aiTitle"));
   setText("aiSub", t("aiSub"));
-  if (currentPage === "overview") loadOverviewPanels();
-  else if (currentPage !== "ai") renderModule(currentPage);
+  if (currentPage !== "overview" && currentPage !== "ai") renderModule(currentPage);
 }
 
 function setConnectionState(connected) {
@@ -746,7 +745,7 @@ byId("langBtn").addEventListener("click", () => {
   lang = lang === "en" ? "ar" : "en";
   try { localStorage.setItem("linuxcore-lang", lang); } catch (_) {}
   applyLanguage();
-  if (currentPage === "overview") loadMetrics(false);
+  if (currentPage === "overview") { loadMetrics(false); loadOverviewPanels(); }
 });
 byId("refreshBtn").addEventListener("click", () => { loadMetrics(true); loadOverviewPanels(); });
 document.querySelectorAll(".nav-item[data-page]").forEach((button) => {
