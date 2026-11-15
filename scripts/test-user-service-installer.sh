@@ -49,7 +49,7 @@ grep -Fq "ExecStop=/usr/bin/bash $SOURCE_ROOT/scripts/stop.sh" "$UNIT_FILE"
 
 # A pre-existing user unit must never be overwritten.
 mkdir -p "$TEST_ROOT/config/systemd/user"
-printf '%s\\n' "user-owned unit" > "$TEST_ROOT/config/systemd/user/linuxcore.service"
+printf '%s\n' "user-owned unit" > "$TEST_ROOT/config/systemd/user/linuxcore.service"
 if PATH="$TEST_ROOT/bin:$PATH" \
    XDG_CONFIG_HOME="$TEST_ROOT/config" \
    bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/existing.log" 2>&1; then
