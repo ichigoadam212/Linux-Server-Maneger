@@ -32,7 +32,8 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
-- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown tests, frontend contract checks and shell syntax validation in GitHub Actions.
+- Optional foreground supervisor with bounded health retries, plus an opt-in systemd user service installer for persistent Linux user sessions.
+- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
 
@@ -80,6 +81,28 @@ Run controlled recovery:
 Stop both LinuxCore services:
 
     bash scripts/stop.sh
+
+### Keep LinuxCore running in a Linux user session
+
+On a VPS or Linux distribution with a working systemd user manager, install the optional user service:
+
+    bash scripts/install-user-service.sh
+
+Check it with:
+
+    systemctl --user status linuxcore.service
+
+The service runs as the current user, starts the local API/dashboard, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding.
+
+In PRoot/Andronix environments without a systemd user manager, run the supervisor in the foreground:
+
+    bash scripts/linuxcore-supervisor.sh run
+
+Keep that terminal/session alive. The supervisor retries failed start/health checks at a bounded interval and exits after repeated failures; it cannot keep running if Android kills or suspends the Linux environment. Do not run multiple supervisors for the same repository.
+
+To disable the systemd user service:
+
+    systemctl --user disable --now linuxcore.service
 
 The start script creates a virtual environment without requiring Android root. If Python's venv module or pip is missing, install the corresponding packages inside the Linux distribution using the package manager and its available permissions. Some Andronix/PRoot environments restrict package installation, systemd user sessions, container runtimes, or host metrics. Unsupported capabilities are reported as unavailable instead of being simulated.
 
@@ -138,7 +161,8 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
-- Android background persistence, exact resource readings and startup behavior require testing on the target phone.
+- The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
+- The foreground supervisor needs its parent Linux session to remain alive; Android background persistence, exact resource readings and startup behavior require testing on the target phone.
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
 - Recovery can restart LinuxCore-owned processes, but it cannot guarantee repair of Android, the Linux distribution itself, or unrelated services.
 
@@ -149,6 +173,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Shell syntax, startup API/dashboard identity, recovery rollback and safe shutdown tests pass in CI.
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
+- [ ] Validate supervisor recovery and systemd user-service installation on a compatible Linux host (automated supervisor retry tests run in CI).
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
