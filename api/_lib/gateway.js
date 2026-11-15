@@ -213,7 +213,7 @@ function createGatewayHandler(options) {
           ...(method === "POST" ? { "Content-Type": "application/json" } : {})
         },
         ...(method === "POST" && rawBody.length ? { body: rawBody } : {}),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(55000),
         redirect: "manual"
       });
       const responseBytes = Buffer.from(await upstreamResponse.arrayBuffer());
