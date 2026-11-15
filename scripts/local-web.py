@@ -11,7 +11,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 try:
     from dotenv import dotenv_values
@@ -50,7 +50,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-OPENER = build_opener(NoRedirect())
+OPENER = build_opener(ProxyHandler({}), NoRedirect())
 
 
 def forward_api_request(method: str, path: str, body: bytes, content_type: str, token: str):
@@ -156,7 +156,7 @@ def main():
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
-    if args.bind not in {"127.0.0.1", "::1", "localhost"}:
+    if args.bind != "127.0.0.1":
         parser.error("The local dashboard proxy may bind only to loopback.")
     directory = Path(args.directory).resolve()
     if not directory.is_dir() or not (directory / "index.html").is_file():
