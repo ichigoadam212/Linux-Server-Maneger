@@ -33,6 +33,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Optional foreground supervisor with bounded health retries and graceful child cleanup, plus an opt-in systemd user service installer that refuses root/overwrite and rolls back failed installation attempts.
+- Local dashboard API calls pass through a loopback-only same-origin proxy that reads the optional backend token server-side; the browser never receives the bearer token.
 - Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
 - The Vercel adapter provides a password login, signed HttpOnly/Secure/SameSite=Strict session cookie, same-origin write checks, allowlisted API routes, bounded JSON payloads, HTTPS-only upstream validation, DNS checks against private/reserved IP ranges and server-side bearer-token forwarding.
 - Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
@@ -95,7 +96,7 @@ Check it with:
 
     systemctl --user status linuxcore.service
 
-The service runs as the current user, starts the local API/dashboard, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding. For it to start at boot and remain active after logout, a VPS administrator must separately enable systemd user lingering for this account; the installer deliberately does not change that host policy.
+The service runs as the current user, starts the local API and a loopback-only same-origin dashboard/API proxy, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding. For it to start at boot and remain active after logout, a VPS administrator must separately enable systemd user lingering for this account; the installer deliberately does not change that host policy.
 
 In PRoot/Andronix environments without a systemd user manager, run the supervisor in the foreground:
 
