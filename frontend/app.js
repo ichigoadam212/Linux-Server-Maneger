@@ -768,6 +768,16 @@ async function sendAI() {
   }
 }
 
+const logout = byId("logoutBtn");
+if (logout && API_BASE) logout.hidden = true;
+if (logout && !API_BASE) logout.addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
+  } finally {
+    showAuthGate(lang === "ar" ? "تم تسجيل الخروج." : "You have been signed out.");
+  }
+});
+
 if (!API_BASE) {
   const authForm = byId("authForm");
   if (authForm) authForm.addEventListener("submit", async (event) => {
@@ -794,15 +804,6 @@ if (!API_BASE) {
       showAuthGate(error.message || (lang === "ar" ? "تعذر تسجيل الدخول." : "Sign-in failed."));
     } finally {
       if (button) button.disabled = false;
-    }
-  });
-  const logout = byId("logoutBtn");
-  if (logout && API_BASE) logout.hidden = true;
-  if (logout && !API_BASE) logout.addEventListener("click", async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
-    } finally {
-      showAuthGate(lang === "ar" ? "تم تسجيل الخروج." : "You have been signed out.");
     }
   });
 }
