@@ -32,7 +32,7 @@ bash scripts/install-user-service.sh
 systemctl --user status linuxcore.service
 ```
 
-The unit runs as the current unprivileged user. It starts the existing loopback-only API and dashboard, then the foreground supervisor periodically verifies both. Repeated failures cause the supervisor to exit so systemd can apply its bounded restart policy. The installer does not enable lingering, grant root privileges, alter firewall rules, or expose ports publicly.
+The unit runs as the current unprivileged user. It starts the existing loopback-only API and dashboard, then the foreground supervisor periodically verifies both. Repeated failures cause the supervisor to exit so systemd can apply its bounded restart policy. The installer does not enable lingering, grant root privileges, alter firewall rules, or expose ports publicly. For boot-time startup and operation after logout, the VPS administrator must separately enable systemd user lingering for this account after reviewing the host's policy.
 
 To disable it:
 
