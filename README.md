@@ -32,7 +32,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
-- Optional foreground supervisor with bounded health retries, plus an opt-in systemd user service installer for persistent Linux user sessions.
+- Optional foreground supervisor with bounded health retries and graceful child cleanup, plus an opt-in systemd user service installer that refuses root/overwrite and rolls back failed installation attempts.
 - Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
 - The Vercel adapter provides a password login, signed HttpOnly/Secure/SameSite=Strict session cookie, same-origin write checks, allowlisted API routes, bounded JSON payloads, HTTPS-only upstream validation and server-side bearer-token forwarding.
 - Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
@@ -175,7 +175,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - [x] Backend API and input-validation tests pass in CI.
 - [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [x] Latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/cleanup and systemd user-service installer tests.
+- [x] Latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/graceful-shutdown and systemd user-service installer guard/rollback tests.
 - [x] Remote API tests verify default-deny, bearer-token validation, weak-token rejection, forwarded-IP spoofing resistance and loopback-proxy token enforcement.
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
