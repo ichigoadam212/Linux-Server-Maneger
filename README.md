@@ -181,10 +181,11 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
 - [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
 - [x] Implement the Vercel password/session gateway, allowlisted API proxy, HTTPS upstream validation, same-origin write protection and isolated Node tests.
-- [x] Create the Vercel project with Vercel Authentication protection enabled for all deployment URLs; verify it has no custom domains and no deployment yet.
-- [ ] Confirm the Git repository connection and build a protected Preview only after CI passes.
+- [x] Create and link the Vercel project; Git deployment metadata confirms the repository and feature branch.
+- [x] Enable Vercel Authentication protection for all deployment URLs and verify the feature-branch Preview build is READY.
+- [x] Redirect the generated production aliases to the protected unique Preview URL; disable automatic custom-domain assignment. No custom domain is attached.
 - [ ] Set Vercel server-side variables: LINUXCORE_LOGIN_PASSWORD, LINUXCORE_SESSION_SECRET, LINUXCORE_UPSTREAM_URL and LINUXCORE_ACCESS_TOKEN; configure matching backend token on the VPS.
-- [ ] Configure Vercel WAF login rate limiting after explicit review of its usage-based charge; the in-function throttle is only best-effort.
+- [ ] Configure Vercel WAF login rate limiting after explicit approval of its usage-based charge; the in-function throttle is only best-effort.
 - [ ] Validate the actual VPS TLS origin, systemd lifecycle, and end-to-end gateway-to-VPS connection.
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
