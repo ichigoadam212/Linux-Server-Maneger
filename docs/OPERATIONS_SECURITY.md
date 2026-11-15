@@ -43,6 +43,19 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 This is an API-to-gateway trust boundary, not a complete public login system. A public dashboard still needs an authenticated user-facing access layer at the gateway (for example, an approved Vercel deployment protection or a dedicated login/session layer) before any public deployment. Do not expose the VPS API directly to the internet.
 
+## Vercel authenticated gateway
+
+The repository now includes a Vercel Node function at `api/[...path].js` and a static dashboard output configuration in `vercel.json`. The gateway is intentionally fail-closed until all four server-side Vercel environment variables are configured:
+
+- `LINUXCORE_LOGIN_PASSWORD`: a unique password of at least 12 characters for dashboard access.
+- `LINUXCORE_SESSION_SECRET`: at least 32 random characters used to sign sessions.
+- `LINUXCORE_UPSTREAM_URL`: the HTTPS origin/base path of the LinuxCore VPS API; private/local IPs and non-HTTPS URLs are rejected.
+- `LINUXCORE_ACCESS_TOKEN`: the same strong bearer token configured in the VPS backend environment.
+
+The password and secrets belong only in Vercel's encrypted server-side environment and the backend token belongs in the VPS backend environment. Never add them to Git, browser code, URLs, or chat. The gateway uses an eight-hour `HttpOnly; Secure; SameSite=Strict; Path=/` cookie, checks same-origin POSTs, restricts methods and API paths, caps request/response bodies, disables caching, and forwards the bearer token only from the server function. Login throttling in the function is best-effort only because serverless instances are ephemeral; configure Vercel Firewall rate limiting and keep deployment protection enabled before exposing any Preview or Production deployment.
+
+This gateway is not yet live. No Vercel project has been created or deployed, and no VPS origin or credentials have been configured. The Vercel project must be protected before the first deployment; never deploy the control dashboard publicly without verifying the protection settings.
+
 ## Persistent user-level operation
 
 On a Linux host with a reachable systemd user manager, install the optional service:
@@ -104,7 +117,7 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 - The dashboard Content Security Policy blocks remote scripts, objects, frames, and non-loopback API connections. Inline styles remain allowed for live metric bars.
 - CORS is a browser policy, not authentication. Other local processes may still be able to call a loopback API.
 - API routes return `Cache-Control: no-store` and `Pragma: no-cache` so browsers and compliant intermediaries should not retain host metrics, inventories, or AI responses.
-- Do not expose this development service to Wi-Fi, the public internet, a reverse proxy, or a tunnel.
+- Do not expose this development service to Wi-Fi, the public internet, a reverse proxy, or a tunnel unless the authenticated Vercel gateway, TLS upstream, WAF rate limiting, and project protection have been configured and reviewed.
 - Never add raw shell input, arbitrary file paths, root escalation, or system-wide service control to the API.
 - Service controls are limited to discovered `systemd --user` units.
 - Container controls are limited to discovered rootless Podman/rootless Docker containers.
