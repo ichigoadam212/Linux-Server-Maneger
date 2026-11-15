@@ -52,7 +52,7 @@ fi
 echo "OK: recovery preflight"
 
 page="$(curl --fail --silent --show-error --max-time 5 "$WEB/")"
-if [[ "$page" != *"LINUXCORE"* || "$page" != *"app.js"* || "$page" != *"overviewServices"* || "$page" != *"overviewCapabilities"* ]]; then
+if [[ "$page" != *"LINUXCORE"* || "$page" != *"app.js"* || "$page" != *"overviewServices"* || "$page" != *"overviewCapabilities"* || "$page" != *"Content-Security-Policy"* ]]; then
   echo "FAIL: dashboard HTML is incomplete or missing live overview panels." >&2
   exit 1
 fi

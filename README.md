@@ -121,6 +121,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 ## Security boundaries
 
 - Localhost-only binding by default.
+- A restrictive dashboard Content Security Policy blocks remote scripts and non-loopback API connections.
 - No arbitrary shell execution and no user-supplied command strings.
 - Service actions are restricted to discovered systemd --user units.
 - Container actions require an accessible rootless runtime and a container present in its current inventory.

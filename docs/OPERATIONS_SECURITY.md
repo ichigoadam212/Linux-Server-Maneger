@@ -56,6 +56,7 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 ## Security boundaries
 
 - Keep both services bound to `127.0.0.1`; do not change to `0.0.0.0` for convenience.
+- The dashboard Content Security Policy blocks remote scripts, objects, frames, and non-loopback API connections. Inline styles remain allowed for live metric bars.
 - CORS is a browser policy, not authentication. Other local processes may still be able to call a loopback API.
 - API routes return `Cache-Control: no-store` and `Pragma: no-cache` so browsers and compliant intermediaries should not retain host metrics, inventories, or AI responses.
 - Do not expose this development service to Wi-Fi, the public internet, a reverse proxy, or a tunnel.
