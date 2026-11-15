@@ -108,11 +108,11 @@ function safeUpstream(value) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
-    const host = url.hostname.toLowerCase();
-    if (host === "localhost" || host.endsWith(".localhost") ||
-        host === "127.0.0.1" || host === "::1" ||
-        /^(10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) ||
-        /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return null;
+    const host = url.hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+    if (net.isIP(host) || !host.includes(".") ||
+        host === "localhost" || host.endsWith(".localhost") ||
+        host.endsWith(".local") || host.endsWith(".internal") ||
+        host.endsWith(".lan") || host.endsWith(".home.arpa")) return null;
     url.pathname = url.pathname.replace(/\/+$/, "");
     return url;
   } catch (_) {
