@@ -15,14 +15,12 @@ if ! systemctl --user show-environment >/dev/null 2>&1; then
   echo "Use scripts/linuxcore-supervisor.sh run in the foreground instead." >&2
   exit 1
 fi
-case "$ROOT" in
-  *[[:space:]]*|*'"'*|*'\\'*|*$'\n'*)
-    echo "Repository paths containing whitespace, quotes, or backslashes are not supported by this installer." >&2
-    exit 1
-    ;;
-esac
+if [[ ! "$ROOT" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+  echo "Repository path contains characters that require systemd unit escaping; move the repository to a simple absolute path." >&2
+  exit 1
+fi
 
-mkdir -p "$UNIT_DIR"
+install -d -m 700 "$UNIT_DIR"
 cat > "$UNIT_FILE" <<UNIT
 [Unit]
 Description=LinuxCore local Linux server manager
