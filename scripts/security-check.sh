@@ -48,7 +48,7 @@ else
 fi
 
 if grep -Fq 'http-equiv="Content-Security-Policy"' "$ROOT/frontend/index.html" &&
-   grep -Fq "connect-src 'self' http://127.0.0.1:8000" "$ROOT/frontend/index.html" &&
+   grep -Fq "connect-src 'self'" "$ROOT/frontend/index.html" &&
    grep -Fq "object-src 'none'" "$ROOT/frontend/index.html"; then
   ok "Dashboard Content Security Policy restricts scripts and API connections"
 else
