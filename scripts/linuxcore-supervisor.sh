@@ -21,7 +21,16 @@ fi
 [[ -x "$STATUS_SCRIPT" || -f "$STATUS_SCRIPT" ]] || { echo "Status script not found: $STATUS_SCRIPT" >&2; exit 2; }
 
 stopping=false
-handle_stop() { stopping=true; if [[ -f "$STOP_SCRIPT" ]]; then bash "$STOP_SCRIPT" || true; fi; }
+SLEEP_PID=""
+handle_stop() {
+  stopping=true
+  if [[ -n "$SLEEP_PID" ]]; then
+    kill "$SLEEP_PID" 2>/dev/null || true
+    wait "$SLEEP_PID" 2>/dev/null || true
+    SLEEP_PID=""
+  fi
+  if [[ -f "$STOP_SCRIPT" ]]; then bash "$STOP_SCRIPT" || true; fi
+}
 trap handle_stop INT TERM HUP
 
 failures=0
@@ -42,6 +51,8 @@ while [[ "$stopping" == false ]]; do
     fi
   fi
   sleep "$INTERVAL" &
-  wait $! || true
+  SLEEP_PID=$!
+  wait "$SLEEP_PID" || true
+  SLEEP_PID=""
 done
 echo "LinuxCore supervisor stopped."
