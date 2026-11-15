@@ -3,6 +3,7 @@ set -euo pipefail
 
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_ROOT="$(mktemp -d)"
+export TEST_ROOT
 trap 'rm -rf "$TEST_ROOT"' EXIT
 mkdir -p "$TEST_ROOT"
 cp "$SOURCE_ROOT/scripts/linuxcore-supervisor.sh" "$TEST_ROOT/supervisor.sh"
