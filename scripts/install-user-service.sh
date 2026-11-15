@@ -47,4 +47,5 @@ systemctl --user daemon-reload
 systemctl --user enable --now "$UNIT_NAME"
 echo "Installed and started $UNIT_NAME."
 echo "Check with: systemctl --user status $UNIT_NAME"
-echo "This service runs only as the current user; it does not enable Android background execution guarantees."
+echo "For service startup after logout/reboot, a VPS administrator must separately enable user lingering for this account."
+echo "This installer does not change login/session policy or enable Android background execution guarantees."
