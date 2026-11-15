@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createGatewayHandler, validSession, safeUpstream, requestPath } = require("../api/_lib/gateway");
+const { createGatewayHandler, validSession, safeUpstream, isPublicAddress, requestPath } = require("../api/_lib/gateway");
 
 const NOW = 1_800_000_000;
 const ENV = {
@@ -44,6 +44,13 @@ test("session signatures expire and reject tampering", () => {
   assert.equal(validSession("", ENV.LINUXCORE_SESSION_SECRET, NOW), false);
   assert.equal(safeUpstream("http://linuxcore.example.net"), null);
   assert.equal(safeUpstream("https://127.0.0.1:8000"), null);
+  assert.equal(safeUpstream("https://[::1]:8000"), null);
+  assert.equal(isPublicAddress("8.8.8.8"), true);
+  assert.equal(isPublicAddress("10.0.0.8"), false);
+  assert.equal(isPublicAddress("169.254.1.2"), false);
+  assert.equal(isPublicAddress("::1"), false);
+  assert.equal(isPublicAddress("fc00::1"), false);
+  assert.equal(isPublicAddress("2606:4700:4700::1111"), true);
   assert.equal(requestPath({ query: { path: ["v1", "..", "metrics"] } }), "");
 });
 
@@ -83,6 +90,7 @@ test("API proxy requires session and forwards only allowlisted paths with server
   const handler = createGatewayHandler({
     env: ENV,
     now: () => NOW,
+    lookupImpl: async () => [{ address: "93.184.216.34", family: 4 }],
     fetchImpl: async (url, init) => {
       captured = { url: String(url), init };
       return new Response(JSON.stringify({ status: "ok" }), {
@@ -149,4 +157,43 @@ test("login throttle blocks repeated attempts from one edge client", async () =>
     }));
   }
   assert.equal(last.status, 429);
+});
+
+
+test("proxy refuses DNS names resolving to private or mixed public/private addresses", async () => {
+  let fetchCalled = false;
+  const handler = createGatewayHandler({
+    env: ENV,
+    now: () => NOW,
+    lookupImpl: async () => [
+      { address: "93.184.216.34", family: 4 },
+      { address: "10.0.0.12", family: 4 }
+    ],
+    fetchImpl: async () => {
+      fetchCalled = true;
+      return new Response("{}", { status: 200 });
+    }
+  });
+  const login = await invoke(handler, request("/api/auth/login", "POST", {
+    body: { password: ENV.LINUXCORE_LOGIN_PASSWORD }
+  }));
+  const cookie = login.headers["set-cookie"].split(";")[0];
+  const result = await invoke(handler, request("/api/v1/health", "GET", { headers: { cookie } }));
+  assert.equal(result.status, 503);
+  assert.equal(fetchCalled, false);
+});
+
+test("proxy fails closed when upstream DNS resolution fails", async () => {
+  const handler = createGatewayHandler({
+    env: ENV,
+    now: () => NOW,
+    lookupImpl: async () => { throw new Error("DNS unavailable"); },
+    fetchImpl: async () => new Response("{}", { status: 200 })
+  });
+  const login = await invoke(handler, request("/api/auth/login", "POST", {
+    body: { password: ENV.LINUXCORE_LOGIN_PASSWORD }
+  }));
+  const cookie = login.headers["set-cookie"].split(";")[0];
+  const result = await invoke(handler, request("/api/v1/health", "GET", { headers: { cookie } }));
+  assert.equal(result.status, 502);
 });
