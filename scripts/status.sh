@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export LINUXCORE_ROOT="$ROOT"
 source "$ROOT/scripts/lib/api-auth.sh"
 echo "LinuxCore local status"
