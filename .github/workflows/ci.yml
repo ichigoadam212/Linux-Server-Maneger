@@ -39,7 +39,10 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Validate shell scripts
-        run: bash -n ../scripts/*.sh
+        run: bash -n ../scripts/*.sh ../scripts/lib/*.sh
+
+      - name: Test startup API identity checks
+        run: bash ../scripts/test-api-health.sh
 
       - name: Validate frontend JavaScript
         run: node --check ../frontend/app.js
