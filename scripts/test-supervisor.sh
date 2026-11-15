@@ -46,4 +46,46 @@ if LINUXCORE_START_SCRIPT="$TEST_ROOT/start.sh" \
   exit 1
 fi
 
-echo "LinuxCore supervisor tests passed (bounded retries and interval validation)."
+
+
+# A graceful signal must stop the owned LinuxCore services and exit cleanly.
+cat > "$TEST_ROOT/status-ok.sh" <<'STATUS'
+#!/usr/bin/env bash
+touch "$TEST_ROOT/status-ok-called"
+exit 0
+STATUS
+chmod +x "$TEST_ROOT/status-ok.sh"
+rm -f "$TEST_ROOT/stop-called" "$TEST_ROOT/status-ok-called"
+LINUXCORE_START_SCRIPT="$TEST_ROOT/start.sh" \
+LINUXCORE_STATUS_SCRIPT="$TEST_ROOT/status-ok.sh" \
+LINUXCORE_STOP_SCRIPT="$TEST_ROOT/stop.sh" \
+LINUXCORE_SUPERVISOR_INTERVAL=5 \
+bash "$TEST_ROOT/supervisor.sh" run >"$TEST_ROOT/graceful.log" 2>&1 &
+SUPERVISOR_PID=$!
+ready=false
+for attempt in {1..30}; do
+  if [[ -f "$TEST_ROOT/status-ok-called" ]]; then
+    ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$ready" != true ]]; then
+  kill "$SUPERVISOR_PID" 2>/dev/null || true
+  wait "$SUPERVISOR_PID" 2>/dev/null || true
+  echo "FAIL: supervisor did not reach its healthy monitoring loop." >&2
+  cat "$TEST_ROOT/graceful.log" >&2
+  exit 1
+fi
+kill -TERM "$SUPERVISOR_PID"
+if ! wait "$SUPERVISOR_PID"; then
+  echo "FAIL: supervisor did not exit cleanly after SIGTERM." >&2
+  cat "$TEST_ROOT/graceful.log" >&2
+  exit 1
+fi
+[[ -f "$TEST_ROOT/stop-called" ]] || {
+  echo "FAIL: supervisor did not invoke safe cleanup after SIGTERM." >&2
+  exit 1
+}
+
+echo "LinuxCore supervisor tests passed (bounded retries, interval validation and graceful shutdown)."
