@@ -33,16 +33,9 @@ if ! "$VENV/bin/python" -c "import fastapi, uvicorn, psutil, dotenv" >/dev/null 
   echo "Backend dependencies are still unavailable after installation."
   exit 1
 fi
-wait_for_url() {
-  local url="$1"
-  local attempts="${2:-20}"
-  for ((attempt=1; attempt<=attempts; attempt++)); do
-    if curl --fail --silent --max-time 1 "$url" >/dev/null; then return 0; fi
-    sleep 0.5
-  done
-  return 1
-}
 source "$ROOT/scripts/lib/api-health.sh"
+source "$ROOT/scripts/lib/web-health.sh"
+
 if api_is_linuxcore; then
   echo "LinuxCore API is already responding."
 else
@@ -53,15 +46,43 @@ else
   fi
   ( cd "$ROOT/backend"; nohup "$VENV/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid" )
 fi
-if curl --fail --silent --max-time 1 "$WEB_URL" >/dev/null; then
-  echo "Dashboard is already responding."
+
+if web_is_linuxcore; then
+  echo "LinuxCore dashboard is already responding."
 else
+  web_probe_status=$?
+  if [[ "$web_probe_status" -eq 2 ]]; then
+    echo "Port 8080 responds, but it is not the LinuxCore dashboard; refusing to treat it as healthy." >&2
+    exit 1
+  fi
   nohup python3 -m http.server 8080 --directory "$ROOT/frontend" --bind 127.0.0.1 >"$RUNTIME/web.log" 2>&1 &
   echo $! >"$RUNTIME/web.pid"
 fi
+
 api_ready=false
 web_ready=false
-if wait_for_api 20; then api_ready=true; echo "API: http://127.0.0.1:8000"; else echo "API did not become ready as LinuxCore. Check $RUNTIME/api.log"; fi
-if wait_for_url "$WEB_URL" 20; then web_ready=true; echo "Website: http://127.0.0.1:8080"; else echo "Website did not become ready. Check $RUNTIME/web.log"; fi
+if wait_for_api 20; then
+  api_ready=true
+  echo "API: http://127.0.0.1:8000"
+else
+  api_wait_status=$?
+  if [[ "$api_wait_status" -eq 2 ]]; then
+    echo "Port 8000 became occupied by a different service; refusing to report LinuxCore as ready." >&2
+  else
+    echo "API did not become ready as LinuxCore. Check $RUNTIME/api.log"
+  fi
+fi
+if wait_for_web 20; then
+  web_ready=true
+  echo "Website: http://127.0.0.1:8080"
+else
+  web_wait_status=$?
+  if [[ "$web_wait_status" -eq 2 ]]; then
+    echo "Port 8080 became occupied by a different service; refusing to report the LinuxCore dashboard as ready." >&2
+  else
+    echo "Website did not become ready as LinuxCore. Check $RUNTIME/web.log"
+  fi
+fi
+
 echo "Both services bind to localhost only; they are not exposed to your network."
 [[ "$api_ready" == true && "$web_ready" == true ]]
