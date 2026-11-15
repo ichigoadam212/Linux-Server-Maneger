@@ -4,25 +4,25 @@
 # a private process-substitution config rather than a visible command argument.
 
 linuxcore_load_access_token() {
-  local token="\${LINUXCORE_ACCESS_TOKEN:-}"
-  local env_file="\${LINUXCORE_ROOT:-$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)}/backend/.env"
+  local token="${LINUXCORE_ACCESS_TOKEN:-}"
+  local env_file="${LINUXCORE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/backend/.env"
   local line value
 
   if [[ -z "$token" && -f "$env_file" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
       case "$line" in
         LINUXCORE_ACCESS_TOKEN=*)
-          value="\${line#*=}"
-          value="\${value%$'\r'}"
-          value="\${value#"\${value%%[![:space:]]*}"}"
-          value="\${value%"\${value##*[![:space:]]}"}"
-          if [[ "$value" == \"*\" && "$value" == *\" ]]; then
-            value="\${value:1:\${#value}-2}"
-          elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
-            value="\${value:1:\${#value}-2}"
+          value="${line#*=}"
+          value="${value%$'\r'}"
+          value="${value#"${value%%[![:space:]]*}"}"
+          value="${value%"${value##*[![:space:]]}"}"
+          if [[ "$value" == \"* && "$value" == *\" ]]; then
+            value="${value:1:${#value}-2}"
+          elif [[ "$value" == \'* && "$value" == *\' ]]; then
+            value="${value:1:${#value}-2}"
           else
-            value="\${value%%#*}"
-            value="\${value%"\${value##*[![:space:]]}"}"
+            value="${value%%#*}"
+            value="${value%"${value##*[![:space:]]}"}"
           fi
           token="$value"
           break
@@ -41,7 +41,7 @@ linuxcore_load_access_token() {
 
 linuxcore_curl() {
   linuxcore_load_access_token || return $?
-  if [[ -n "\${LINUXCORE_ACCESS_TOKEN:-}" ]]; then
+  if [[ -n "${LINUXCORE_ACCESS_TOKEN:-}" ]]; then
     command curl --config <(printf 'header = "Authorization: Bearer %s"\n' "$LINUXCORE_ACCESS_TOKEN") "$@"
   else
     command curl "$@"
