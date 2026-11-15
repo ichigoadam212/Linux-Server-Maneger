@@ -45,7 +45,7 @@ assert_status() {
   local actual=0
   "$@" || actual=$?
   if [[ "$actual" -ne "$expected" ]]; then
-    printf 'FAIL: %s returned %s; expected %s\\n' "$*" "$actual" "$expected" >&2
+    printf 'FAIL: %s returned %s; expected %s\n' "$*" "$actual" "$expected" >&2
     return 1
   fi
 }
@@ -55,7 +55,7 @@ assert_count() {
   local actual
   actual="$(cat "$TEST_BIN/curl-count" 2>/dev/null || printf '0')"
   if [[ "$actual" -ne "$expected" ]]; then
-    printf 'FAIL: curl called %s times; expected %s\\n' "$actual" "$expected" >&2
+    printf 'FAIL: curl called %s times; expected %s\n' "$actual" "$expected" >&2
     return 1
   fi
 }
@@ -76,4 +76,4 @@ rm -f "$TEST_BIN/curl-count"
 FAKE_CURL_MODE=retry-then-healthy assert_status 0 wait_for_api 3
 assert_count 3
 
-printf '%s\\n' 'Startup API identity tests passed (9 cases).'
+printf '%s\n' 'Startup API identity tests passed (9 cases).'
