@@ -18,7 +18,11 @@ case "$*" in
     touch "$TEST_ROOT/daemon-reload"
     ;;
   "--user enable --now linuxcore.service")
+    if [[ "${FAKE_SYSTEMD_ENABLE_FAIL:-0}" == "1" ]]; then exit 91; fi
     touch "$TEST_ROOT/enabled"
+    ;;
+  "--user disable --now linuxcore.service")
+    touch "$TEST_ROOT/disabled"
     ;;
   *)
     echo "Unexpected systemctl arguments: $*" >&2
@@ -43,6 +47,37 @@ grep -Fq "ExecStop=/usr/bin/bash $SOURCE_ROOT/scripts/stop.sh" "$UNIT_FILE"
   exit 1
 }
 
+# A pre-existing user unit must never be overwritten.
+mkdir -p "$TEST_ROOT/config/systemd/user"
+printf '%s\\n' "user-owned unit" > "$TEST_ROOT/config/systemd/user/linuxcore.service"
+if PATH="$TEST_ROOT/bin:$PATH" \
+   XDG_CONFIG_HOME="$TEST_ROOT/config" \
+   bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/existing.log" 2>&1; then
+  echo "FAIL: installer overwrote an existing user unit." >&2
+  exit 1
+fi
+grep -Fxq "user-owned unit" "$TEST_ROOT/config/systemd/user/linuxcore.service" || {
+  echo "FAIL: existing user unit was modified." >&2
+  exit 1
+}
+
+rm -rf "$TEST_ROOT/config/systemd"
+if PATH="$TEST_ROOT/bin:$PATH" \
+   XDG_CONFIG_HOME="$TEST_ROOT/config" \
+   FAKE_SYSTEMD_ENABLE_FAIL=1 \
+   bash "$SOURCE_ROOT/scripts/install-user-service.sh" >"$TEST_ROOT/enable-failure.log" 2>&1; then
+  echo "FAIL: installer ignored a failed systemd enable/start operation." >&2
+  exit 1
+fi
+[[ ! -e "$TEST_ROOT/config/systemd/user/linuxcore.service" ]] || {
+  echo "FAIL: failed installation left a partially installed unit." >&2
+  exit 1
+}
+[[ -f "$TEST_ROOT/disabled" ]] || {
+  echo "FAIL: installer did not attempt to stop/disable a partially enabled unit." >&2
+  exit 1
+}
+
 rm -rf "$TEST_ROOT/config/systemd"
 if PATH="$TEST_ROOT/bin:$PATH" \
    XDG_CONFIG_HOME="$TEST_ROOT/config" \
@@ -56,4 +91,4 @@ fi
   exit 1
 }
 
-echo "LinuxCore user-service installer tests passed (unit content, permissions, enablement and unavailable-manager refusal)."
+echo "LinuxCore user-service installer tests passed (unit content, permissions, enablement, overwrite refusal, rollback and unavailable-manager refusal)."
