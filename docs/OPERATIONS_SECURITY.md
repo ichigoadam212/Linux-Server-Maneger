@@ -35,6 +35,8 @@ Authorization: Bearer <LINUXCORE_ACCESS_TOKEN>
 
 When the token is missing or shorter than 32 characters, remote API requests are rejected; a configured but weak token also fails closed. Once a token is configured, loopback requests must present it too. A configured token is compared in constant time. The API does not trust `X-Forwarded-For` to decide whether a request is local. Keep the token only in the Linux backend environment and the gateway's encrypted server-side environment; never put it in frontend JavaScript, Git, a URL, or a client-visible response.
 
+The repository's local startup identity probe, status command, recovery check and smoke test read this single assignment without sourcing or executing `backend/.env` and add the bearer header only when a token is configured. Keep generated tokens URL-safe so these local probes can parse them safely. The helper does not print the token or put it in the curl command-line arguments.
+
 Generate a token on the server without sharing it:
 
 ```bash
