@@ -35,7 +35,11 @@ fi
 
 install -d -m 700 "$UNIT_DIR"
 TEMP_UNIT="$(mktemp "$UNIT_DIR/.linuxcore.service.XXXXXX")"
-cleanup_temp() { [[ -n "${TEMP_UNIT:-}" && -e "$TEMP_UNIT" ]] && rm -f -- "$TEMP_UNIT"; }
+cleanup_temp() {
+  if [[ -n "${TEMP_UNIT:-}" && -e "$TEMP_UNIT" ]]; then
+    rm -f -- "$TEMP_UNIT"
+  fi
+}
 trap cleanup_temp EXIT
 cat > "$TEMP_UNIT" <<UNIT
 [Unit]
