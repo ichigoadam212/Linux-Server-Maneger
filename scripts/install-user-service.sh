@@ -34,6 +34,7 @@ StartLimitBurst=5
 Type=simple
 WorkingDirectory=$ROOT
 ExecStart=/usr/bin/bash $ROOT/scripts/linuxcore-supervisor.sh run
+ExecStop=/usr/bin/bash $ROOT/scripts/stop.sh
 Restart=on-failure
 RestartSec=10
 KillSignal=SIGTERM
