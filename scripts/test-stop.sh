@@ -22,10 +22,13 @@ chmod +x "$TEST_ROOT/bin/ps"
 export PATH="$TEST_ROOT/bin:$PATH"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
+start_detached_sleep() { bash -c 'sleep 30 >/dev/null 2>&1 & echo $! > "$1"' _ "$1"; }
 
 # Matching LinuxCore-owned PIDs are stopped and their PID files removed.
-sleep 30 & WEB_PID=$!
-sleep 30 & API_PID=$!
+start_detached_sleep "$TEST_ROOT/web.pid"
+start_detached_sleep "$TEST_ROOT/api.pid"
+WEB_PID="$(cat "$TEST_ROOT/web.pid")"
+API_PID="$(cat "$TEST_ROOT/api.pid")"
 export FAKE_WEB_PID="$WEB_PID" FAKE_API_PID="$API_PID"
 printf '%s\n' "$WEB_PID" > "$TEST_ROOT/repo/.runtime/web.pid"
 printf '%s\n' "$API_PID" > "$TEST_ROOT/repo/.runtime/api.pid"
@@ -37,7 +40,8 @@ unset WEB_PID API_PID FAKE_WEB_PID FAKE_API_PID
 [[ ! -e "$TEST_ROOT/repo/.runtime/api.pid" ]] || fail "API PID file remained after stop"
 
 # A PID that does not match the expected LinuxCore command is never signalled.
-sleep 30 & FOREIGN_PID=$!
+start_detached_sleep "$TEST_ROOT/foreign.pid"
+FOREIGN_PID="$(cat "$TEST_ROOT/foreign.pid")"
 printf '%s\n' "$FOREIGN_PID" > "$TEST_ROOT/repo/.runtime/web.pid"
 if bash "$TEST_ROOT/repo/scripts/stop.sh" > "$TEST_ROOT/mismatch.log" 2>&1; then
   fail "mismatched PID was reported as successfully stopped"
