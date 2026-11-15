@@ -61,6 +61,15 @@ else
   ok "Dashboard does not load remote scripts"
 fi
 
+if [[ -f "$ROOT/scripts/local-web.py" ]] &&
+   grep -Fq 'ThreadingHTTPServer((args.bind, args.port)' "$ROOT/scripts/local-web.py" &&
+   grep -Fq 'API_ORIGIN = "http://127.0.0.1:8000"' "$ROOT/scripts/local-web.py" &&
+   grep -Fq 'def load_access_token' "$ROOT/scripts/local-web.py"; then
+  ok "Local dashboard proxy binds to loopback and keeps API credentials server-side"
+else
+  fail "Local dashboard proxy security boundary is missing or incomplete"
+fi
+
 if [[ -f "$ROOT/api/_lib/gateway.js" && -f "$ROOT/api/[...path].js" ]] &&
    grep -Fq 'HttpOnly; Secure; SameSite=Strict' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'redirect: "manual"' "$ROOT/api/_lib/gateway.js" &&
