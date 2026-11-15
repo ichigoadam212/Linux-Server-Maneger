@@ -108,7 +108,8 @@ function safeUpstream(value) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
-    const host = url.hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+    const hostValue = url.hostname.toLowerCase();
+    const host = hostValue.startsWith("[") ? hostValue.slice(1, -1) : hostValue;
     if (net.isIP(host) || !host.includes(".") ||
         host === "localhost" || host.endsWith(".localhost") ||
         host.endsWith(".local") || host.endsWith(".internal") ||
