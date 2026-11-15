@@ -67,7 +67,7 @@ bash scripts/install-user-service.sh
 systemctl --user status linuxcore.service
 ```
 
-The unit runs as the current unprivileged user. It starts the existing loopback-only API and dashboard, then the foreground supervisor periodically verifies both. Repeated failures cause the supervisor to exit so systemd can apply its bounded restart policy. The installer does not enable lingering, grant root privileges, alter firewall rules, or expose ports publicly. For boot-time startup and operation after logout, the VPS administrator must separately enable systemd user lingering for this account after reviewing the host's policy.
+The installer refuses to run as root, requires an absolute configuration path, and will not overwrite an existing user unit. It writes the unit through a private temporary file and rolls it back if systemd cannot reload or enable/start it. The unit runs as the current unprivileged user. It starts the existing loopback-only API and dashboard, then the foreground supervisor periodically verifies both. Repeated failures cause the supervisor to exit so systemd can apply its bounded restart policy. The installer does not enable lingering, grant root privileges, alter firewall rules, or expose ports publicly. For boot-time startup and operation after logout, the VPS administrator must separately enable systemd user lingering for this account after reviewing the host's policy.
 
 To disable it:
 
@@ -81,7 +81,7 @@ If systemd user sessions are unavailable (common in PRoot/Andronix), use the for
 bash scripts/linuxcore-supervisor.sh run
 ```
 
-Keep the Linux session alive. The supervisor uses a 10-second default check interval and exits after five consecutive failed checks; both values have bounded environment-variable overrides. This fallback is not a daemon and cannot survive Android suspending or killing its parent Linux environment. Do not start more than one supervisor for the same repository.
+Keep the Linux session alive. The supervisor uses a 10-second default check interval and exits after five consecutive failed checks; both values have bounded environment-variable overrides. On graceful termination it stops its wait timer and invokes the PID-verified LinuxCore cleanup script. This fallback is not a daemon and cannot survive Android suspending or killing its parent Linux environment. Do not start more than one supervisor for the same repository.
 
 ## Validation
 
