@@ -54,7 +54,7 @@ class LocalProxyTests(unittest.TestCase):
             env_file.parent.mkdir()
             marker = root / "must-not-exist"
             env_file.write_text(
-                f'LINUXCORE_ACCESS_TOKEN="{TOKEN}"\ntouch {marker}\n',
+                f'LINUXCORE_ACCESS_TOKEN="{TOKEN}"\nMALICIOUS="$(touch {marker})"\n',
                 encoding="utf-8",
             )
             with patch.dict(os.environ, {}, clear=True):
