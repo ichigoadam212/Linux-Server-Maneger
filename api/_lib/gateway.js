@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const net = require("node:net");
 
 const COOKIE = "__Host-linuxcore_session";
 const SESSION_SECONDS = 8 * 60 * 60;
