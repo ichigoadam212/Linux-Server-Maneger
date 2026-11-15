@@ -56,7 +56,7 @@ else
   ok "No local backend/.env file is present"
 fi
 
-if bash -n "$ROOT"/scripts/*.sh; then
+if bash -n "$ROOT"/scripts/*.sh "$ROOT"/scripts/lib/*.sh; then
   ok "Shell scripts pass syntax validation"
 else
   fail "Shell script syntax validation failed"

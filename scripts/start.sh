@@ -42,9 +42,15 @@ wait_for_url() {
   done
   return 1
 }
-if curl --fail --silent --max-time 1 "$API_URL" >/dev/null; then
+source "$ROOT/scripts/lib/api-health.sh"
+if api_is_linuxcore; then
   echo "LinuxCore API is already responding."
 else
+  api_probe_status=$?
+  if [[ "$api_probe_status" -eq 2 ]]; then
+    echo "Port 8000 responds, but it is not the LinuxCore API; refusing to treat it as healthy." >&2
+    exit 1
+  fi
   ( cd "$ROOT/backend"; nohup "$VENV/bin/uvicorn" main:app --host 127.0.0.1 --port 8000 >"$RUNTIME/api.log" 2>&1 & echo $! >"$RUNTIME/api.pid" )
 fi
 if curl --fail --silent --max-time 1 "$WEB_URL" >/dev/null; then
@@ -55,7 +61,7 @@ else
 fi
 api_ready=false
 web_ready=false
-if wait_for_url "$API_URL" 20; then api_ready=true; echo "API: http://127.0.0.1:8000"; else echo "API did not become ready. Check $RUNTIME/api.log"; fi
+if wait_for_api 20; then api_ready=true; echo "API: http://127.0.0.1:8000"; else echo "API did not become ready as LinuxCore. Check $RUNTIME/api.log"; fi
 if wait_for_url "$WEB_URL" 20; then web_ready=true; echo "Website: http://127.0.0.1:8080"; else echo "Website did not become ready. Check $RUNTIME/web.log"; fi
 echo "Both services bind to localhost only; they are not exposed to your network."
 [[ "$api_ready" == true && "$web_ready" == true ]]
