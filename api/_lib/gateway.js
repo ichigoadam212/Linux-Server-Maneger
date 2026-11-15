@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const net = require("node:net");
+const dns = require("node:dns/promises");
 
 const COOKIE = "__Host-linuxcore_session";
 const SESSION_SECONDS = 8 * 60 * 60;
@@ -9,6 +10,25 @@ const MAX_BODY_BYTES = 128 * 1024;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const LOGIN_MAX_ATTEMPTS = 5;
 const loginAttempts = new Map();
+
+const blockedIPv4 = new net.BlockList();
+[
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24],
+  ["192.0.2.0", 24], ["192.88.99.0", 24], ["192.168.0.0", 16],
+  ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24],
+  ["224.0.0.0", 4], ["240.0.0.0", 4]
+].forEach(([address, prefix]) => blockedIPv4.addSubnet(address, prefix, "ipv4"));
+
+const blockedIPv6 = new net.BlockList();
+[
+  ["::", 128], ["::1", 128], ["::ffff:0:0", 96], ["64:ff9b:1::", 48],
+  ["100::", 64], ["2001:db8::", 32], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]
+].forEach(([address, prefix]) => blockedIPv6.addSubnet(address, prefix, "ipv6"));
+const nonGlobalIPv6 = new net.BlockList();
+[["::", 1], ["4000::", 2], ["8000::", 1]].forEach(([address, prefix]) =>
+  nonGlobalIPv6.addSubnet(address, prefix, "ipv6")
+);
 
 const API_RULES = [
   [/^\/api\/v1\/(health|metrics|diagnostics|storage|processes|network)$/, "GET"],
@@ -104,6 +124,14 @@ function validOrigin(req) {
   }
 }
 
+function isPublicAddress(address) {
+  const family = net.isIP(address);
+  if (family === 4) return !blockedIPv4.check(address, "ipv4");
+  if (family === 6) return !blockedIPv6.check(address, "ipv6") &&
+    !nonGlobalIPv6.check(address, "ipv6");
+  return false;
+}
+
 function safeUpstream(value) {
   try {
     const url = new URL(value);
@@ -142,6 +170,7 @@ function loginRateLimited(req, now) {
 function createGatewayHandler(options) {
   const env = options.env || process.env;
   const fetchImpl = options.fetchImpl || fetch;
+  const lookupImpl = options.lookupImpl || ((hostname, settings) => dns.lookup(hostname, settings));
   const now = options.now || (() => Math.floor(Date.now() / 1000));
 
   return async function gateway(req, res) {
@@ -234,5 +263,5 @@ function createGatewayHandler(options) {
 
 module.exports = {
   COOKIE, SESSION_SECONDS, API_RULES, createGatewayHandler, loginRateLimited,
-  validSession, safeUpstream, requestPath, validOrigin
+  validSession, safeUpstream, isPublicAddress, requestPath, validOrigin
 };
