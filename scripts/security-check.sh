@@ -53,6 +53,16 @@ else
   ok "Dashboard does not load remote scripts"
 fi
 
+if [[ -f "$ROOT/api/_lib/gateway.js" && -f "$ROOT/api/[...path].js" ]] &&
+   grep -Fq 'HttpOnly; Secure; SameSite=Strict' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'redirect: "manual"' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'safeUpstream' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'API_RULES' "$ROOT/api/_lib/gateway.js"; then
+  ok "Vercel gateway uses secure sessions, HTTPS upstream validation and allowlisted routes"
+else
+  fail "Vercel gateway security boundary is missing or incomplete"
+fi
+
 if grep -Fq 'DEEPSEEK_API_KEY=' "$ROOT/frontend"/*.js "$ROOT/frontend"/*.html 2>/dev/null; then
   fail "A DeepSeek API key assignment appears in frontend assets"
 else
