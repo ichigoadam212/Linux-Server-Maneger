@@ -35,11 +35,14 @@ check_json "$API/metrics" \
   'import json,sys; d=json.load(sys.stdin); assert 0 <= d["cpu_percent"] <= 100 and 0 <= d["memory_percent"] <= 100 and d["cpu_count"] >= 1 and d["disk_total_gb"] > 0' \
   "host metrics"
 
-for endpoint in storage processes network diagnostics services containers terminal/commands recovery/check ai/status; do
-  check_json "$API/$endpoint" \
-    'import json,sys; d=json.load(sys.stdin); assert isinstance(d, dict)' \
-    "$endpoint"
-done
+check_json "$API/storage" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("items"), list)' "storage inventory"
+check_json "$API/processes" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("items"), list); assert all("cmdline" not in p and "command_line" not in p for p in d["items"])' "privacy-filtered process inventory"
+check_json "$API/network" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("interfaces"), list)' "network inventory"
+check_json "$API/diagnostics" 'import json,sys; d=json.load(sys.stdin); c=d["capabilities"]; assert isinstance(d.get("host", {}).get("architecture"), str); assert isinstance(c["user_services"]["available"], bool); assert isinstance(c["containers"]["available"], bool); assert isinstance(c["network_counters"]["available"], bool); assert isinstance(c["diagnostic_commands"], dict)' "environment diagnostics"
+check_json "$API/services" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "user-service inventory"
+check_json "$API/containers" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "rootless container inventory"
+check_json "$API/terminal/commands" 'import json,sys; d=json.load(sys.stdin); ids={x["id"] for x in d["commands"]}; assert ids <= {"pwd","system","storage","memory","uptime","processes"}' "allowlisted diagnostic commands"
+check_json "$API/ai/status" 'import json,sys; d=json.load(sys.stdin); assert d.get("mode") == "advisory-only" and isinstance(d.get("configured"), bool)' "AI privacy status"
 
 recovery="$(curl --fail --silent --show-error --max-time 5 "$API/recovery/check")"
 if ! printf '%s' "$recovery" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("healthy") is True and all(x.get("present") for x in d.get("files", [])) and d.get("dependencies") is True'; then
@@ -49,13 +52,17 @@ fi
 echo "OK: recovery preflight"
 
 page="$(curl --fail --silent --show-error --max-time 5 "$WEB/")"
-if [[ "$page" != *"LINUXCORE"* || "$page" != *"app.js"* ]]; then
-  echo "FAIL: dashboard HTML is incomplete." >&2
+if [[ "$page" != *"LINUXCORE"* || "$page" != *"app.js"* || "$page" != *"overviewServices"* || "$page" != *"overviewCapabilities"* ]]; then
+  echo "FAIL: dashboard HTML is incomplete or missing live overview panels." >&2
   exit 1
 fi
-curl --fail --silent --show-error --max-time 5 "$WEB/app.js" >/dev/null
+script="$(curl --fail --silent --show-error --max-time 5 "$WEB/app.js")"
+if [[ "$script" != *"loadOverviewPanels"* || "$script" != *"/api/v1/diagnostics"* ]]; then
+  echo "FAIL: dashboard does not load live overview data." >&2
+  exit 1
+fi
 curl --fail --silent --show-error --max-time 5 "$WEB/styles.css" >/dev/null
-echo "OK: dashboard and static assets"
+echo "OK: dashboard live overview and static assets"
 
 echo
 echo "LinuxCore smoke test passed."

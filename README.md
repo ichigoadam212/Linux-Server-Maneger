@@ -19,6 +19,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 ## Implemented
 
 - Responsive cyber dashboard with Arabic/English UI and RTL support.
+- Overview panels load current user-service inventory and real environment capability checks; fabricated activity entries and static network sparkline samples are not presented as live data.
 - Live CPU, memory, disk, host identity, uptime, storage, process and network views.
 - Live environment diagnostics for architecture, Python runtime, privilege level, user-service manager, rootless container runtime, network counters and allowlisted diagnostic tools.
 - Graceful handling when the Linux environment restricts /proc network counters.

@@ -29,6 +29,8 @@ The Security page reads `GET /api/v1/diagnostics` to show live capability checks
 
 The Security-page diagnostics request allows 30 seconds because capability discovery is sequential and may include bounded systemd, Podman, and Docker probes. A slow optional runtime should not cause the browser to abandon the diagnostics response before those checks finish.
 
+The overview loads the live `systemd --user` inventory and diagnostics capabilities. It does not display fabricated service events or sample network graph data. No event-history API is implemented yet.
+
 Run the local static security checks:
 
 ```bash

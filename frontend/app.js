@@ -12,8 +12,12 @@ const translations = {
     interface:"Interface", networkAggregate:"All interfaces", controlCenter:"CONTROL CENTER", overviewTitle:"Server overview",
     overviewSub:"Monitor your Linux environment from one command center.", refresh:"Refresh",
     systemHealth:"SYSTEM HEALTH", serviceStatus:"Service status", viewAll:"VIEW ALL ↗", monitoring:"MONITORING",
-    recentActivity:"Recent activity", backupCompleted:"Backup completed", serviceRestarted:"Service restarted",
-    securityScan:"Security scan finished", noIssues:"No issues detected", demoActivity:"Illustrative activity · not live system events",
+    recentActivity:"Recent activity", environmentCapabilities:"Environment capabilities", liveChecks:"LIVE CHECKS",
+    loadingOverview:"Loading live environment data…", noUserServices:"No user services were discovered.",
+    serviceUnavailable:"User service manager is unavailable in this Linux environment.",
+    activeState:"Active", inactiveState:"Not active", capabilityAvailable:"Available", capabilityUnavailable:"Unavailable",
+    userServices:"User services", rootlessContainers:"Rootless containers", networkCounters:"Network counters",
+    diagnosticCommands:"Diagnostic commands", capabilityFooter:"Live capability results; unavailable features are not simulated.",
     footerNote:"Designed for secure, local-first server administration.", serviceDiscoveryPending:"Service discovery is pending identification of the Linux init system.",
     serviceDescription:"Manage only services owned by your unprivileged systemd user session.",
     containersDescription:"Inspect and control containers only through an accessible rootless Podman or Docker runtime.",
@@ -40,8 +44,12 @@ const translations = {
     interface:"واجهة الاتصال", networkAggregate:"كل الواجهات", controlCenter:"مركز التحكم", overviewTitle:"نظرة عامة على السيرفر",
     overviewSub:"راقب بيئة Linux من مركز تحكم واحد.", refresh:"تحديث",
     systemHealth:"حالة النظام", serviceStatus:"حالة الخدمات", viewAll:"عرض الكل ↗", monitoring:"المراقبة",
-    recentActivity:"النشاط الأخير", backupCompleted:"اكتمل النسخ الاحتياطي", serviceRestarted:"أُعيد تشغيل الخدمة",
-    securityScan:"اكتمل فحص الأمان", noIssues:"لم يتم اكتشاف مشكلات", demoActivity:"نشاط توضيحي · ليس أحداثًا مباشرة",
+    recentActivity:"النشاط الأخير", environmentCapabilities:"إمكانيات البيئة", liveChecks:"فحوصات مباشرة",
+    loadingOverview:"جاري تحميل بيانات البيئة الفعلية…", noUserServices:"لم يتم العثور على خدمات للمستخدم.",
+    serviceUnavailable:"مدير خدمات المستخدم غير متاح في بيئة Linux الحالية.",
+    activeState:"نشطة", inactiveState:"غير نشطة", capabilityAvailable:"متاح", capabilityUnavailable:"غير متاح",
+    userServices:"خدمات المستخدم", rootlessContainers:"الحاويات Rootless", networkCounters:"عدادات الشبكة",
+    diagnosticCommands:"أوامر التشخيص", capabilityFooter:"نتائج فحص فعلية؛ لا تتم محاكاة الإمكانيات غير المتاحة.",
     footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن.", serviceDiscoveryPending:"اكتشاف الخدمات مؤجل لحين تحديد مدير التشغيل داخل Linux.",
     serviceDescription:"إدارة خدمات جلسة systemd الخاصة بالمستخدم فقط، من غير صلاحيات Root.",
     containersDescription:"عرض وإدارة الحاويات من خلال Podman أو Docker بنمط Rootless فقط.",
@@ -69,6 +77,7 @@ try {
 let currentPage = "overview";
 let hostConnected = false;
 let metricsRequestId = 0;
+let overviewRequestId = 0;
 let moduleRequestId = 0;
 let previousNetwork = null;
 let aiConfigured = false;
@@ -113,7 +122,8 @@ function applyLanguage() {
   setText("aiPrivacy", t("aiPrivacy"));
   setText("aiTitle", t("aiTitle"));
   setText("aiSub", t("aiSub"));
-  if (currentPage !== "overview" && currentPage !== "ai") renderModule(currentPage);
+  if (currentPage === "overview") loadOverviewPanels();
+  else if (currentPage !== "ai") renderModule(currentPage);
 }
 
 function setConnectionState(connected) {
@@ -245,6 +255,67 @@ async function loadMetrics(showToast) {
   }
 }
 
+async function loadOverviewPanels() {
+  const requestId = ++overviewRequestId;
+  const serviceRoot = byId("overviewServices");
+  const capabilityRoot = byId("overviewCapabilities");
+  if (!serviceRoot || !capabilityRoot) return;
+  serviceRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
+  capabilityRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
+  const results = await Promise.allSettled([
+    fetchJson("http://127.0.0.1:8000/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
+    fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {cache:"no-store", signal:AbortSignal.timeout(30000)})
+  ]);
+  if (requestId !== overviewRequestId || currentPage !== "overview") return;
+  serviceRoot.replaceChildren();
+  const serviceResult = results[0];
+  if (serviceResult.status === "rejected") {
+    serviceRoot.append(moduleNode("div", "module-notice", t("apiUnavailable")));
+  } else if (serviceResult.value.available !== true) {
+    serviceRoot.append(moduleNode("div", "module-notice", serviceResult.value.reason || t("serviceUnavailable")));
+  } else {
+    const items = Array.isArray(serviceResult.value.items) ? serviceResult.value.items : [];
+    if (!items.length) serviceRoot.append(moduleNode("div", "module-notice", t("noUserServices")));
+    items.slice(0,5).forEach((item) => {
+      const row = moduleNode("div", "service-row");
+      const symbol = moduleNode("span", "service-symbol", "S");
+      const name = moduleNode("div", "service-name");
+      name.append(moduleNode("b", "", item.unit || "unknown.service"));
+      name.append(moduleNode("small", "", [item.sub,item.description].filter(Boolean).join(" · ")));
+      const active = item.active === "active";
+      const status = moduleNode("span", "status " + (active ? "online" : "warning"), active ? t("activeState") : t("inactiveState"));
+      row.append(symbol,name,status);
+      serviceRoot.append(row);
+    });
+    if (items.length > 5) serviceRoot.append(moduleNode("div", "activity-footer", "+" + (items.length-5) + " more services"));
+  }
+  capabilityRoot.replaceChildren();
+  const diagnosticResult = results[1];
+  if (diagnosticResult.status === "rejected") {
+    capabilityRoot.append(moduleNode("div", "module-notice", t("apiUnavailable")));
+    return;
+  }
+  const capabilities = diagnosticResult.value.capabilities || {};
+  const checks = [
+    [t("userServices"), capabilities.user_services && capabilities.user_services.available === true],
+    [t("rootlessContainers"), capabilities.containers && capabilities.containers.available === true],
+    [t("networkCounters"), capabilities.network_counters && capabilities.network_counters.available === true]
+  ];
+  const commands = capabilities.diagnostic_commands || {};
+  const commandCount = Object.values(commands).filter(Boolean).length;
+  checks.push([t("diagnosticCommands"), commandCount + " / " + Object.keys(commands).length]);
+  checks.forEach(([label,state]) => {
+    const available = state === true;
+    const row = moduleNode("div","activity-row");
+    row.append(moduleNode("span","activity-dot " + (available ? "green" : "amber")));
+    const details = moduleNode("div");
+    details.append(moduleNode("b","",label));
+    details.append(moduleNode("small","",typeof state === "string" ? state : (available ? t("capabilityAvailable") : t("capabilityUnavailable"))));
+    row.append(details);
+    capabilityRoot.append(row);
+  });
+}
+
 function moduleNode(tag, className, content) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -299,7 +370,7 @@ function navigate(page, button) {
 
   if (isAI) checkAIStatus();
   else if (isModule) renderModule(page);
-  else loadMetrics(false);
+  else { loadMetrics(false); loadOverviewPanels(); }
 }
 
 function moduleActionButton(label, callback) {
@@ -677,7 +748,7 @@ byId("langBtn").addEventListener("click", () => {
   applyLanguage();
   if (currentPage === "overview") loadMetrics(false);
 });
-byId("refreshBtn").addEventListener("click", () => loadMetrics(true));
+byId("refreshBtn").addEventListener("click", () => { loadMetrics(true); loadOverviewPanels(); });
 document.querySelectorAll(".nav-item[data-page]").forEach((button) => {
   button.addEventListener("click", () => navigate(button.dataset.page, button));
 });
@@ -702,6 +773,7 @@ function tick() {
 applyLanguage();
 tick();
 loadMetrics(false);
+loadOverviewPanels();
 window.setInterval(tick, 1000);
 window.setInterval(() => {
   if (currentPage === "overview") loadMetrics(false);
