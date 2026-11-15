@@ -35,7 +35,7 @@ check_json "$API/metrics" \
   'import json,sys; d=json.load(sys.stdin); assert 0 <= d["cpu_percent"] <= 100 and 0 <= d["memory_percent"] <= 100 and d["cpu_count"] >= 1 and d["disk_total_gb"] > 0' \
   "host metrics"
 
-for endpoint in storage processes network services containers terminal/commands recovery/check ai/status; do
+for endpoint in storage processes network diagnostics services containers terminal/commands recovery/check ai/status; do
   check_json "$API/$endpoint" \
     'import json,sys; d=json.load(sys.stdin); assert isinstance(d, dict)' \
     "$endpoint"
