@@ -55,17 +55,17 @@ if ! printf '%s' "$recovery" | python3 -c 'import json,sys; d=json.load(sys.stdi
 fi
 echo "OK: recovery preflight"
 
-page="$(linuxcore_curl --fail --silent --show-error --max-time 5 "$WEB/")"
+page="$(curl --fail --silent --show-error --max-time 5 "$WEB/")"
 if [[ "$page" != *"LINUXCORE"* || "$page" != *"app.js"* || "$page" != *"overviewServices"* || "$page" != *"overviewCapabilities"* || "$page" != *"Content-Security-Policy"* ]]; then
   echo "FAIL: dashboard HTML is incomplete or missing live overview panels." >&2
   exit 1
 fi
-script="$(linuxcore_curl --fail --silent --show-error --max-time 5 "$WEB/app.js")"
+script="$(curl --fail --silent --show-error --max-time 5 "$WEB/app.js")"
 if [[ "$script" != *"loadOverviewPanels"* || "$script" != *"/api/v1/diagnostics"* ]]; then
   echo "FAIL: dashboard does not load live overview data." >&2
   exit 1
 fi
-linuxcore_curl --fail --silent --show-error --max-time 5 "$WEB/styles.css" >/dev/null
+curl --fail --silent --show-error --max-time 5 "$WEB/styles.css" >/dev/null
 echo "OK: dashboard live overview and static assets"
 
 echo
