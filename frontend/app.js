@@ -189,8 +189,28 @@ function rate(bytes, oldBytes, seconds) {
   return Math.max(0, (bytes - oldBytes) / seconds / 1048576);
 }
 
+function showAuthGate(message) {
+  const gate = byId("authGate");
+  if (!gate || API_BASE) return;
+  gate.hidden = false;
+  const error = byId("authError");
+  if (error) error.textContent = message || (lang === "ar" ? "سجّل الدخول لمتابعة التحكم." : "Sign in to continue.");
+  const password = byId("authPassword");
+  if (password) password.focus();
+}
+
+function hideAuthGate() {
+  const gate = byId("authGate");
+  if (gate) gate.hidden = true;
+  const error = byId("authError");
+  if (error) error.textContent = "";
+  const password = byId("authPassword");
+  if (password) password.value = "";
+}
+
 async function fetchJson(url, options) {
-  const response = await fetch(url, options || {});
+  const response = await fetch(url, { credentials: "same-origin", ...(options || {}) });
+  if (response.status === 401 && !API_BASE) showAuthGate();
   if (!response.ok) throw new Error("HTTP " + response.status);
   return response.json();
 }
@@ -718,6 +738,7 @@ async function sendAI() {
   try {
     const response = await fetch(API_BASE + "/api/v1/ai/chat", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: requestMessages,
@@ -726,6 +747,7 @@ async function sendAI() {
       signal: AbortSignal.timeout(40000)
     });
     const data = await response.json();
+    if (response.status === 401 && !API_BASE) showAuthGate();
     if (!response.ok) throw new Error(data.detail || "AI request failed");
     if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("AI returned an empty response");
     waiting.remove();
@@ -743,6 +765,44 @@ async function sendAI() {
     send.textContent = t("aiSend");
     input.focus();
   }
+}
+
+if (!API_BASE) {
+  const authForm = byId("authForm");
+  if (authForm) authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = byId("authSubmit");
+    const password = byId("authPassword");
+    const error = byId("authError");
+    if (button) button.disabled = true;
+    if (error) error.textContent = "";
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password ? password.value : "" }),
+        cache: "no-store"
+      });
+      const data = await response.json();
+      if (!response.ok || data.authenticated !== true) throw new Error(data.detail || "Login failed");
+      hideAuthGate();
+      loadMetrics(false);
+      loadOverviewPanels();
+    } catch (error) {
+      showAuthGate(error.message || (lang === "ar" ? "تعذر تسجيل الدخول." : "Sign-in failed."));
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+  const logout = byId("logoutBtn");
+  if (logout) logout.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
+    } finally {
+      showAuthGate(lang === "ar" ? "تم تسجيل الخروج." : "You have been signed out.");
+    }
+  });
 }
 
 byId("langBtn").addEventListener("click", () => {
