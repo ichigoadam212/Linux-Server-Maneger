@@ -165,7 +165,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
 - Public Vercel access requires the gateway's four server-side variables, a protected Vercel project, platform-level login rate limiting/WAF, HTTPS VPS origin, and server-side secret configuration. The API bearer token alone is not a public login system.
-- The gateway's in-memory sign-in throttle is only a best-effort per-instance guard; configure Vercel Firewall rate limiting before any external access.
+- The gateway's in-memory sign-in throttle is only a best-effort per-instance guard; configure Vercel Firewall rate limiting before any external access. On the current Hobby team, Vercel Authentication protects Preview/deployment URLs but not a Production custom domain; the gateway login must be configured and verified before production.
 - The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
 - The foreground supervisor needs its parent Linux session to remain alive; Android background persistence, exact resource readings and startup behavior require testing on the target phone.
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
