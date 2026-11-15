@@ -59,8 +59,14 @@ jobs:
       - name: Test systemd user-service installer
         run: bash ../scripts/test-user-service-installer.sh
 
-      - name: Validate frontend JavaScript
-        run: node --check ../frontend/app.js
+      - name: Validate frontend and Vercel gateway JavaScript
+        run: |
+          node --check ../frontend/app.js
+          node --check ../api/_lib/gateway.js
+          node --check '../api/[...path].js'
+
+      - name: Test authenticated Vercel gateway
+        run: node --test ../scripts/test-vercel-gateway.cjs
 
       - name: Verify dashboard live-data contract
         run: bash ../scripts/test-frontend-contract.sh
