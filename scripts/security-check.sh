@@ -65,6 +65,8 @@ if [[ -f "$ROOT/api/_lib/gateway.js" && -f "$ROOT/api/[...path].js" ]] &&
    grep -Fq 'HttpOnly; Secure; SameSite=Strict' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'redirect: "manual"' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'safeUpstream' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'lookupImpl(upstream.hostname' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'isPublicAddress(entry.address)' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'API_RULES' "$ROOT/api/_lib/gateway.js" &&
    grep -Fq 'SLEEP_PID=' "$ROOT/scripts/linuxcore-supervisor.sh"; then
   ok "Vercel gateway uses secure sessions, HTTPS upstream validation and allowlisted routes"
