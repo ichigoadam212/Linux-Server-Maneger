@@ -24,6 +24,7 @@ chmod +x "$TEST_ROOT/start.sh" "$TEST_ROOT/status.sh" "$TEST_ROOT/stop.sh"
 
 if LINUXCORE_START_SCRIPT="$TEST_ROOT/start.sh" \
    LINUXCORE_STATUS_SCRIPT="$TEST_ROOT/status.sh" \
+   LINUXCORE_STOP_SCRIPT="$TEST_ROOT/stop.sh" \
    LINUXCORE_SUPERVISOR_INTERVAL=5 \
    LINUXCORE_SUPERVISOR_MAX_FAILURES=2 \
    bash "$TEST_ROOT/supervisor.sh" run >"$TEST_ROOT/output.log" 2>&1; then
