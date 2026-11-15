@@ -92,7 +92,7 @@ Check it with:
 
     systemctl --user status linuxcore.service
 
-The service runs as the current user, starts the local API/dashboard, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding.
+The service runs as the current user, starts the local API/dashboard, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding. For it to start at boot and remain active after logout, a VPS administrator must separately enable systemd user lingering for this account; the installer deliberately does not change that host policy.
 
 In PRoot/Andronix environments without a systemd user manager, run the supervisor in the foreground:
 
