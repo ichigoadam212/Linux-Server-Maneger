@@ -347,7 +347,7 @@ async function renderModule(page) {
   if (page === "security") {
     try {
       const data = await fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {
-        cache: "no-store", signal: AbortSignal.timeout(15000)
+        cache: "no-store", signal: AbortSignal.timeout(30000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
       const capabilities = data.capabilities || {};
