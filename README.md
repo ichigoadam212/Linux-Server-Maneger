@@ -33,6 +33,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Optional foreground supervisor with bounded health retries, plus an opt-in systemd user service installer for persistent Linux user sessions.
+- Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
 - Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
@@ -161,6 +162,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
+- Public Vercel access still requires an authenticated user-facing gateway/login and a protected project; the remote API bearer token alone is not a public login system.
 - The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
 - The foreground supervisor needs its parent Linux session to remain alive; Android background persistence, exact resource readings and startup behavior require testing on the target phone.
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
