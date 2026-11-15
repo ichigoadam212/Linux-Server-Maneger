@@ -181,8 +181,10 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
 - [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
 - [x] Implement the Vercel password/session gateway, allowlisted API proxy, HTTPS upstream validation, same-origin write protection and isolated Node tests.
-- [ ] Create/link a Vercel project only after its deployment protection and firewall rate limiting are confirmed. No LinuxCore Vercel project or deployment has been created.
+- [x] Create the Vercel project with Vercel Authentication protection enabled for all deployment URLs; verify it has no custom domains and no deployment yet.
+- [ ] Confirm the Git repository connection and build a protected Preview only after CI passes.
 - [ ] Set Vercel server-side variables: LINUXCORE_LOGIN_PASSWORD, LINUXCORE_SESSION_SECRET, LINUXCORE_UPSTREAM_URL and LINUXCORE_ACCESS_TOKEN; configure matching backend token on the VPS.
+- [ ] Configure Vercel WAF login rate limiting after explicit review of its usage-based charge; the in-function throttle is only best-effort.
 - [ ] Validate the actual VPS TLS origin, systemd lifecycle, and end-to-end gateway-to-VPS connection.
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
