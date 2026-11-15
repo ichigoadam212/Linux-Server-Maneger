@@ -174,28 +174,36 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
 - Recovery can restart LinuxCore-owned processes, but it cannot guarantee repair of Android, the Linux distribution itself, or unrelated services.
 
-## Validation checklist
+## Validation status
 
-- [x] Backend API and input-validation tests pass in CI.
-- [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [x] Latest CI run passes shell syntax, startup identity, recovery rollback, safe shutdown, supervisor retry/graceful-shutdown and systemd user-service installer guard/rollback tests.
+### Automated code acceptance
+
+- [x] Backend API and input-validation tests pass in GitHub Actions.
+- [x] Frontend JavaScript syntax and live-data contract checks pass.
+- [x] Shell syntax, startup identity, recovery rollback, safe shutdown, supervisor and systemd user-service installer tests pass.
 - [x] Remote API tests verify default-deny, bearer-token validation, weak-token rejection, forwarded-IP spoofing resistance and loopback-proxy token enforcement.
-- [x] CI starts an isolated loopback API plus the same-origin dashboard/API proxy and passes the full non-destructive smoke test both without a token and with a configured bearer token.
-- [x] Local dashboard proxy tests cover server-side token forwarding, fixed loopback origin, allowlisted paths, body limits, dotenv parsing and no redirects.
-- [x] Local startup/status/recovery/smoke probes support configured backend bearer tokens without exposing them to browser code.
-- [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
-- [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
-- [x] Implement the Vercel password/session gateway, allowlisted API proxy, HTTPS upstream validation, same-origin write protection and isolated Node tests.
-- [x] Create and link the Vercel project; Git deployment metadata confirms the repository and feature branch.
-- [x] Enable Vercel Authentication protection for all deployment URLs and verify the feature-branch Preview build is READY.
-- [x] Redirect the generated production aliases to the protected unique Preview URL; disable automatic custom-domain assignment. No custom domain is attached.
-- [ ] Set Vercel server-side variables: LINUXCORE_LOGIN_PASSWORD, LINUXCORE_SESSION_SECRET, LINUXCORE_UPSTREAM_URL and LINUXCORE_ACCESS_TOKEN; configure matching backend token on the VPS.
-- [ ] Configure Vercel WAF login rate limiting after explicit approval of its usage-based charge; the in-function throttle is only best-effort.
-- [ ] Validate the actual VPS TLS origin, systemd lifecycle, and end-to-end gateway-to-VPS connection.
-- [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
-- [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
-- [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
-- [ ] **Final device stage:** verify start/stop/recovery and background/resume behavior on Android.
+- [x] End-to-end smoke tests pass in both open and token-protected modes through the same-origin local proxy.
+- [x] Local proxy tests cover server-side token forwarding, fixed loopback origin, allowlisted paths, body limits, dotenv parsing and redirects.
+- [x] Startup/status/recovery/smoke probes support backend bearer tokens without exposing them to browser code.
+- [x] Static security checks cover loopback binding, CORS, CSP, tracked secrets and runtime-file exclusions.
+- [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
+- [x] Latest observed GitHub Actions run for this PR head: run #305 completed successfully (2026-11-15).
+
+### Final local target-device acceptance — only remaining for the phone build
+
+- [ ] Pull the reviewed branch on the target phone, start LinuxCore and run `bash scripts/smoke-test.sh`.
+- [ ] Confirm the dashboard and Arabic/English layout in the phone browser.
+- [ ] Record which user-service manager and rootless container runtime are actually available on the phone.
+- [ ] Confirm start/stop/recovery behavior when Android backgrounds the Linux environment.
+
+### Deferred: optional VPS and public hosting
+
+These are not prerequisites for local phone testing and remain intentionally deferred. No VPS is connected to Termalin or SentinelX, and no Vercel settings or deployment changes are part of this stage.
+
+- [ ] Validate systemd user-service lifecycle and lingering on a compatible VPS.
+- [ ] Configure a real HTTPS VPS origin and matching server-side bearer token before enabling remote gateway access.
+- [ ] Configure Vercel server-side secrets and platform-level login rate limiting only after the owner explicitly resumes the Vercel work and approves any usage-based charges.
+- [ ] Run end-to-end gateway-to-VPS tests after a real host is connected.
 
 ## License
 
