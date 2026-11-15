@@ -115,6 +115,19 @@ def test_loopback_api_remains_available_without_remote_token(monkeypatch):
     assert response.status_code == 200
 
 
+def test_configured_token_is_required_even_for_loopback_proxy_requests(monkeypatch):
+    token = "linuxcore-test-token-" + ("y" * 40)
+    monkeypatch.setenv("LINUXCORE_ACCESS_TOKEN", token)
+
+    missing = client.get("/api/v1/health")
+    valid = client.get("/api/v1/health", headers={
+        "Authorization": f"Bearer {token}",
+    })
+
+    assert missing.status_code == 401
+    assert valid.status_code == 200
+
+
 def test_api_responses_disable_caching():
     response = client.get("/api/v1/health")
     assert response.status_code == 200
