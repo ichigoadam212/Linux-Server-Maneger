@@ -233,6 +233,17 @@ function createGatewayHandler(options) {
       return json(res, 415, { detail: "Only JSON request bodies are accepted." });
     }
 
+    let resolvedAddresses;
+    try {
+      resolvedAddresses = await lookupImpl(upstream.hostname, { all: true, verbatim: true });
+    } catch (_) {
+      return json(res, 502, { detail: "LinuxCore upstream hostname could not be resolved." });
+    }
+    if (!Array.isArray(resolvedAddresses) || resolvedAddresses.length === 0 ||
+        resolvedAddresses.some((entry) => !entry || !isPublicAddress(entry.address))) {
+      return json(res, 503, { detail: "LinuxCore upstream must resolve only to public IP addresses." });
+    }
+
     const basePath = upstream.pathname.replace(/\/+$/, "");
     const target = new URL(basePath + path, upstream.origin);
     try {
