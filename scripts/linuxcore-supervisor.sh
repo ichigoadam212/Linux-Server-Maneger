@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 START_SCRIPT="${LINUXCORE_START_SCRIPT:-$ROOT/scripts/start.sh}"
 STATUS_SCRIPT="${LINUXCORE_STATUS_SCRIPT:-$ROOT/scripts/status.sh}"
+STOP_SCRIPT="${LINUXCORE_STOP_SCRIPT:-$ROOT/scripts/stop.sh}"
 INTERVAL="${LINUXCORE_SUPERVISOR_INTERVAL:-10}"
 MAX_FAILURES="${LINUXCORE_SUPERVISOR_MAX_FAILURES:-5}"
 
@@ -20,7 +21,7 @@ fi
 [[ -x "$STATUS_SCRIPT" || -f "$STATUS_SCRIPT" ]] || { echo "Status script not found: $STATUS_SCRIPT" >&2; exit 2; }
 
 stopping=false
-handle_stop() { stopping=true; }
+handle_stop() { stopping=true; if [[ -f "$STOP_SCRIPT" ]]; then bash "$STOP_SCRIPT" || true; fi; }
 trap handle_stop INT TERM HUP
 
 failures=0
@@ -35,7 +36,8 @@ while [[ "$stopping" == false ]]; do
     failures=$((failures + 1))
     echo "LinuxCore health/start check failed ($failures/$MAX_FAILURES)." >&2
     if (( failures >= MAX_FAILURES )); then
-      echo "LinuxCore supervisor reached its failure limit; exiting for the service manager to apply its restart policy." >&2
+      echo "LinuxCore supervisor reached its failure limit; stopping only PID-verified LinuxCore child processes before exiting." >&2
+      if [[ -f "$STOP_SCRIPT" ]]; then bash "$STOP_SCRIPT" || true; fi
       exit 1
     fi
   fi
