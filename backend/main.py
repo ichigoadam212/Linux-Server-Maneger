@@ -52,10 +52,13 @@ def is_loopback_client(request: Request) -> bool:
 
 @app.middleware("http")
 async def protect_remote_api_access(request: Request, call_next):
-    if not request.url.path.startswith("/api/") or is_loopback_client(request):
+    if not request.url.path.startswith("/api/"):
         return await call_next(request)
 
     configured_token = os.getenv("LINUXCORE_ACCESS_TOKEN", "").strip()
+    if not configured_token and is_loopback_client(request):
+        return await call_next(request)
+
     if len(configured_token) < 32:
         response = JSONResponse(
             status_code=503,
