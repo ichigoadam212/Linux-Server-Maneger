@@ -50,6 +50,9 @@ jobs:
       - name: Test controlled recovery rollback
         run: bash ../scripts/test-recovery.sh
 
+      - name: Test safe service shutdown
+        run: bash ../scripts/test-stop.sh
+
       - name: Validate frontend JavaScript
         run: node --check ../frontend/app.js
 

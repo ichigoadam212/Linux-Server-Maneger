@@ -32,7 +32,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
-- Automated backend tests and frontend/shell syntax checks in GitHub Actions.
+- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
 
