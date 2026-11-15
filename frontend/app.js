@@ -193,6 +193,7 @@ function showAuthGate(message) {
   const gate = byId("authGate");
   if (!gate || API_BASE) return;
   gate.hidden = false;
+  gate.style.display = "grid";
   const error = byId("authError");
   if (error) error.textContent = message || (lang === "ar" ? "سجّل الدخول لمتابعة التحكم." : "Sign in to continue.");
   const password = byId("authPassword");
@@ -201,7 +202,7 @@ function showAuthGate(message) {
 
 function hideAuthGate() {
   const gate = byId("authGate");
-  if (gate) gate.hidden = true;
+  if (gate) { gate.hidden = true; gate.style.display = "none"; }
   const error = byId("authError");
   if (error) error.textContent = "";
   const password = byId("authPassword");
@@ -796,7 +797,8 @@ if (!API_BASE) {
     }
   });
   const logout = byId("logoutBtn");
-  if (logout) logout.addEventListener("click", async () => {
+  if (logout && API_BASE) logout.hidden = true;
+  if (logout && !API_BASE) logout.addEventListener("click", async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
     } finally {
