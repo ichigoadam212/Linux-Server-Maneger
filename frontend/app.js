@@ -345,19 +345,44 @@ async function renderModule(page) {
   }
 
   if (page === "security") {
-    const rows = [
-      ["API binding", "127.0.0.1 only"],
-      ["Service control", "systemd --user only"],
-      ["Container control", "Rootless runtime only"],
-      ["Terminal", "Allowlisted read-only diagnostics"],
-      ["AI permissions", "Advisory only"],
-      ["Android / system root", "No access"]
-    ];
-    rows.forEach(([key, value]) => {
-      const row = moduleNode("div", "module-stat");
-      row.append(moduleNode("b", "", key), moduleNode("span", "", value));
-      content.append(row);
-    });
+    try {
+      const data = await fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {
+        cache: "no-store", signal: AbortSignal.timeout(15000)
+      });
+      if (requestId !== moduleRequestId || currentPage !== page) return;
+      const capabilities = data.capabilities || {};
+      const host = data.host || {};
+      const services = capabilities.user_services || {};
+      const containers = capabilities.containers || {};
+      const network = capabilities.network_counters || {};
+      const commands = capabilities.diagnostic_commands || {};
+      const commandCount = Object.values(commands).filter(Boolean).length;
+      const commandTotal = Object.keys(commands).length;
+      const yes = isArabic ? "متاح" : "Available";
+      const no = isArabic ? "غير متاح" : "Unavailable";
+      const rows = [
+        [isArabic ? "ربط API" : "API binding", "127.0.0.1 only"],
+        [isArabic ? "صلاحيات العملية" : "Process privileges", host.is_root ? (isArabic ? "يعمل بصلاحيات root" : "Running as root") : (isArabic ? "مستخدم عادي" : "Unprivileged user")],
+        [isArabic ? "معمارية النظام" : "Host architecture", host.architecture || "—"],
+        [isArabic ? "إصدار Python" : "Python version", host.python_version || "—"],
+        [isArabic ? "خدمات المستخدم" : "User services", services.available ? yes : no],
+        [isArabic ? "بيئة الحاويات" : "Container runtime", containers.available ? (containers.runtime || "Rootless runtime") : no],
+        [isArabic ? "عدادات الشبكة" : "Network counters", network.available ? yes : no],
+        [isArabic ? "أوامر التشخيص" : "Diagnostic commands", commandCount + " / " + commandTotal],
+        [isArabic ? "صلاحيات المساعد الذكي" : "AI permissions", isArabic ? "استشاري فقط" : "Advisory only"]
+      ];
+      rows.forEach(([key, value]) => {
+        const row = moduleNode("div", "module-stat");
+        row.append(moduleNode("b", "", key), moduleNode("span", "", value));
+        content.append(row);
+      });
+      [services.reason, containers.reason].filter(Boolean).forEach((reason) => moduleNotice(reason));
+      moduleNotice(isArabic
+        ? "بيانات الفحص الفعلية من بيئة Linux الحالية. الإمكانيات غير المتاحة لا يتم محاكاتها."
+        : "Live checks from the current Linux environment. Unsupported capabilities are reported, never simulated.");
+    } catch (error) {
+      if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
+    }
     return;
   }
 

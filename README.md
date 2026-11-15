@@ -20,6 +20,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 
 - Responsive cyber dashboard with Arabic/English UI and RTL support.
 - Live CPU, memory, disk, host identity, uptime, storage, process and network views.
+- Live environment diagnostics for architecture, Python runtime, privilege level, user-service manager, rootless container runtime, network counters and allowlisted diagnostic tools.
 - Graceful handling when the Linux environment restricts /proc network counters.
 - **Services:** Discover and start/stop/restart only services listed by the current unprivileged systemd --user manager. No system-wide or root service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
@@ -87,6 +88,7 @@ The scripts can be invoked with bash; executable file permissions are not requir
 
 - GET /api/v1/health
 - GET /api/v1/metrics
+- GET /api/v1/diagnostics
 - GET /api/v1/storage
 - GET /api/v1/processes
 - GET /api/v1/network

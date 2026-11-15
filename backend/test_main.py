@@ -91,6 +91,44 @@ def test_metrics_endpoint_shape_and_ranges():
     assert payload["uptime_seconds"] >= 0
 
 
+def test_diagnostics_reports_real_environment_capabilities(monkeypatch):
+    monkeypatch.setattr(main, "user_systemctl", lambda: "/usr/bin/systemctl")
+    monkeypatch.setattr(main, "container_runtime", lambda: ("podman", "/usr/bin/podman"))
+    monkeypatch.setattr(main, "safe_net_io_counters", lambda pernic=False: object())
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/" + name)
+
+    response = client.get("/api/v1/diagnostics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["host"]["system"]
+    assert payload["host"]["architecture"]
+    assert payload["host"]["python_version"]
+    assert payload["host"]["is_root"] in (True, False)
+    capabilities = payload["capabilities"]
+    assert capabilities["user_services"]["available"] is True
+    assert capabilities["containers"]["runtime"] == "podman"
+    assert capabilities["network_counters"]["available"] is True
+    assert all(capabilities["diagnostic_commands"].values())
+
+
+def test_diagnostics_reports_unavailable_optional_capabilities(monkeypatch):
+    monkeypatch.setattr(main, "user_systemctl", lambda: None)
+    monkeypatch.setattr(main, "container_runtime", lambda: None)
+    monkeypatch.setattr(main, "safe_net_io_counters", lambda pernic=False: None)
+    monkeypatch.setattr(main.shutil, "which", lambda name: None)
+
+    response = client.get("/api/v1/diagnostics")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["user_services"]["available"] is False
+    assert capabilities["containers"]["available"] is False
+    assert capabilities["containers"]["runtime"] is None
+    assert capabilities["network_counters"]["available"] is False
+    assert not any(capabilities["diagnostic_commands"].values())
+
+
 def test_storage_endpoint_is_read_only_inventory():
     response = client.get("/api/v1/storage")
     assert response.status_code == 200
