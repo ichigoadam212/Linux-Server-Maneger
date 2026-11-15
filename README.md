@@ -34,11 +34,13 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Optional foreground supervisor with bounded health retries, plus an opt-in systemd user service installer for persistent Linux user sessions.
 - Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
+- The Vercel adapter provides a password login, signed HttpOnly/Secure/SameSite=Strict session cookie, same-origin write checks, allowlisted API routes, bounded JSON payloads, HTTPS-only upstream validation and server-side bearer-token forwarding.
 - Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
 
     frontend/                 Website files
+    api/                      Vercel login/session gateway and allowlisted API proxy
     backend/                  FastAPI service and tests
     scripts/                  Linux setup and lifecycle scripts
     docs/                     Deployment and shared-host notes
@@ -162,7 +164,8 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
-- Public Vercel access still requires an authenticated user-facing gateway/login and a protected project; the remote API bearer token alone is not a public login system.
+- Public Vercel access requires the gateway's four server-side variables, a protected Vercel project, platform-level login rate limiting/WAF, HTTPS VPS origin, and server-side secret configuration. The API bearer token alone is not a public login system.
+- The gateway's in-memory sign-in throttle is only a best-effort per-instance guard; configure Vercel Firewall rate limiting before any external access.
 - The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
 - The foreground supervisor needs its parent Linux session to remain alive; Android background persistence, exact resource readings and startup behavior require testing on the target phone.
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
@@ -177,8 +180,10 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
 - [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
 - [ ] Validate actual systemd user-service lifecycle on a compatible VPS/Linux host; CI uses an isolated systemctl fixture and cannot validate host policy or lingering.
-- [ ] Finish the authenticated Vercel gateway/login and link a protected Preview project. No LinuxCore Vercel project or public deployment has been created.
-- [ ] Configure the VPS upstream URL and server-side secrets after the host and gateway are approved.
+- [x] Implement the Vercel password/session gateway, allowlisted API proxy, HTTPS upstream validation, same-origin write protection and isolated Node tests.
+- [ ] Create/link a Vercel project only after its deployment protection and firewall rate limiting are confirmed. No LinuxCore Vercel project or deployment has been created.
+- [ ] Set Vercel server-side variables: LINUXCORE_LOGIN_PASSWORD, LINUXCORE_SESSION_SECRET, LINUXCORE_UPSTREAM_URL and LINUXCORE_ACCESS_TOKEN; configure matching backend token on the VPS.
+- [ ] Validate the actual VPS TLS origin, systemd lifecycle, and end-to-end gateway-to-VPS connection.
 - [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
 - [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
