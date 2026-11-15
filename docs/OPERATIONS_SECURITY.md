@@ -23,6 +23,26 @@ To stop LinuxCore:
 bash scripts/stop.sh
 ```
 
+## Remote API access boundary
+
+LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1`; local dashboard requests continue to work without a remote token.
+
+If the API is deliberately placed behind a trusted HTTPS reverse proxy or a server-side gateway, configure `LINUXCORE_ACCESS_TOKEN` in the backend environment with a random value of at least 32 characters. Every non-loopback `/api/*` request must then include:
+
+```http
+Authorization: Bearer <LINUXCORE_ACCESS_TOKEN>
+```
+
+When the token is missing or shorter than 32 characters, remote API requests are rejected. A configured token is compared in constant time. The API does not trust `X-Forwarded-For` to decide whether a request is local. Keep the token only in the Linux backend environment and the gateway's encrypted server-side environment; never put it in frontend JavaScript, Git, a URL, or a client-visible response.
+
+Generate a token on the server without sharing it:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+This is an API-to-gateway trust boundary, not a complete public login system. A public dashboard still needs an authenticated user-facing access layer at the gateway (for example, an approved Vercel deployment protection or a dedicated login/session layer) before any public deployment. Do not expose the VPS API directly to the internet.
+
 ## Persistent user-level operation
 
 On a Linux host with a reachable systemd user manager, install the optional service:
