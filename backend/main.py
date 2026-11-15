@@ -248,6 +248,41 @@ def metrics():
     }
 
 
+@app.get("/api/v1/diagnostics")
+def diagnostics():
+    """Report real, read-only capability checks for the current Linux user-space."""
+    systemctl = user_systemctl()
+    runtime = container_runtime()
+    network_available = safe_net_io_counters() is not None
+    commands = {
+        key: shutil.which(argv[0]) is not None
+        for key, argv in TERMINAL_COMMANDS.items()
+    }
+    return {
+        "host": {
+            "system": platform.system(),
+            "architecture": platform.machine(),
+            "python_version": platform.python_version(),
+            "is_root": os.geteuid() == 0,
+        },
+        "capabilities": {
+            "user_services": {
+                "available": systemctl is not None,
+                "manager": "systemd --user",
+                "reason": None if systemctl else "A usable unprivileged systemd user manager is not available.",
+            },
+            "containers": {
+                "available": runtime is not None,
+                "runtime": runtime[0] if runtime else None,
+                "reason": None if runtime else "No accessible rootless Podman or rootless Docker runtime was detected.",
+            },
+            "network_counters": {"available": network_available},
+            "diagnostic_commands": commands,
+        },
+        "timestamp": timestamp(),
+    }
+
+
 @app.get("/api/v1/storage")
 def storage():
     items = []
