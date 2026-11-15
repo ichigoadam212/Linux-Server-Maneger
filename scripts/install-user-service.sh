@@ -27,6 +27,8 @@ cat > "$UNIT_FILE" <<UNIT
 [Unit]
 Description=LinuxCore local Linux server manager
 After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -34,8 +36,6 @@ WorkingDirectory=$ROOT
 ExecStart=/usr/bin/bash $ROOT/scripts/linuxcore-supervisor.sh run
 Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=5
 KillSignal=SIGTERM
 TimeoutStopSec=15
 UMask=0077
