@@ -317,7 +317,7 @@ function createGatewayHandler(options) {
       return json(res, 503, { detail: "LinuxCore upstream must resolve only to public IP addresses." });
     }
 
-    const basePath = upstream.pathname.replace(/\\/+$/, "");
+    const basePath = upstream.pathname.replace(/\/+$/, "");
     const target = new URL(basePath + path, upstream.origin);
     let upstreamResponse;
     try {
