@@ -4,7 +4,7 @@ const test = require("node:test");
 const { EventEmitter } = require("node:events");
 const { Readable } = require("node:stream");
 const assert = require("node:assert/strict");
-const { createGatewayHandler, validSession, safeUpstream, isPublicAddress, requestPath } = require("../api/_lib/gateway");
+const { createGatewayHandler, validSession, safeUpstream, isPublicAddress, requestPath, loginRateLimited } = require("../api/_lib/gateway");
 
 const NOW = 1_800_000_000;
 const ENV = {
