@@ -162,6 +162,31 @@ test("API proxy pins its HTTPS connection to the validated DNS address", async (
   assert.deepEqual(allPinned, [{ address: "93.184.216.34", family: 4 }]);
 });
 
+test("proxy forwards allowlisted JSON POST bodies with the server-side token", async () => {
+  const transport = makeTransport({ body: '{"accepted":true}' });
+  const handler = createGatewayHandler({
+    env: ENV,
+    now: () => NOW,
+    lookupImpl: async () => [{ address: "93.184.216.34", family: 4 }],
+    requestImpl: transport.requestImpl
+  });
+  const login = await invoke(handler, request("/api/auth/login", "POST", {
+    body: { password: ENV.LINUXCORE_LOGIN_PASSWORD }
+  }));
+  const cookie = login.headers["set-cookie"].split(";")[0];
+  const payload = JSON.stringify({ action: "restart" });
+  const result = await invoke(handler, request("/api/v1/services/test.service/action", "POST", {
+    headers: { cookie, "content-type": "application/json" },
+    body: payload
+  }));
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { accepted: true });
+  assert.equal(transport.captured.options.method, "POST");
+  assert.equal(transport.captured.options.headers["Content-Type"], "application/json");
+  assert.equal(transport.captured.options.headers.Authorization, "Bearer " + ENV.LINUXCORE_ACCESS_TOKEN);
+  assert.equal(transport.captured.body.toString(), payload);
+});
+
 test("proxy rejects unlisted endpoints, wrong methods, and oversized bodies", async () => {
   const handler = createGatewayHandler({ env: ENV, now: () => NOW });
   const login = await invoke(handler, request("/api/auth/login", "POST", {
