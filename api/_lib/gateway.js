@@ -3,10 +3,14 @@
 const crypto = require("node:crypto");
 const net = require("node:net");
 const dns = require("node:dns/promises");
+const https = require("node:https");
 
 const COOKIE = "__Host-linuxcore_session";
 const SESSION_SECONDS = 8 * 60 * 60;
 const MAX_BODY_BYTES = 128 * 1024;
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const UPSTREAM_TIMEOUT_MS = 55000;
+const LOGIN_MAX_CLIENTS = 2048;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const LOGIN_MAX_ATTEMPTS = 5;
 const loginAttempts = new Map();
@@ -150,26 +154,94 @@ function safeUpstream(value) {
 }
 
 function loginRateLimited(req, now) {
-  const clientIp = String((req.headers || {})["x-real-ip"] || "").trim();
-  // Do not place every visitor into one shared bucket when the edge IP header is absent.
+  const suppliedIp = String((req.headers || {})["x-real-ip"] || "").trim();
+  const clientIp = net.isIP(suppliedIp) ? suppliedIp : "";
+  // Vercel's edge IP header is optional in local tests; platform WAF remains the
+  // authoritative shared rate limiter because serverless instances are ephemeral.
   if (!clientIp) return false;
+
+  for (const [client, entry] of loginAttempts) {
+    if (now - entry.start >= LOGIN_WINDOW_SECONDS || now < entry.start) loginAttempts.delete(client);
+  }
+
   const key = clientIp;
-  const current = loginAttempts.get(key) || { count: 0, start: now };
+  let current = loginAttempts.get(key);
+  if (!current && loginAttempts.size >= LOGIN_MAX_CLIENTS) {
+    const oldest = loginAttempts.keys().next().value;
+    if (oldest !== undefined) loginAttempts.delete(oldest);
+  }
+  if (!current) current = { count: 0, start: now };
   if (now - current.start >= LOGIN_WINDOW_SECONDS || now < current.start) {
     current.count = 0;
     current.start = now;
   }
   current.count += 1;
+  loginAttempts.delete(key);
   loginAttempts.set(key, current);
-  for (const [client, entry] of loginAttempts) {
-    if (now - entry.start >= LOGIN_WINDOW_SECONDS || now < entry.start) loginAttempts.delete(client);
-  }
   return current.count > LOGIN_MAX_ATTEMPTS;
+}
+
+function readBoundedBody(stream, limit = MAX_RESPONSE_BYTES) {
+  return (async () => {
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of stream) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      if (total + bytes.length > limit) {
+        if (typeof stream.destroy === "function") stream.destroy();
+        const error = new Error("Upstream response exceeded the gateway limit.");
+        error.code = "ERR_UPSTREAM_RESPONSE_TOO_LARGE";
+        throw error;
+      }
+      total += bytes.length;
+      chunks.push(bytes);
+    }
+    return Buffer.concat(chunks, total);
+  })();
+}
+
+function requestPinned(requestImpl, target, requestOptions, addressEntry) {
+  return new Promise((resolve, reject) => {
+    const hostname = target.hostname;
+    const family = addressEntry.family || net.isIP(addressEntry.address);
+    const pinnedLookup = (requestedHostname, lookupOptions, callback) => {
+      if (String(requestedHostname).toLowerCase() !== hostname.toLowerCase()) {
+        callback(new Error("Unexpected upstream lookup hostname."));
+        return;
+      }
+      const resolved = { address: addressEntry.address, family };
+      if (lookupOptions && lookupOptions.all) callback(null, [resolved]);
+      else callback(null, resolved.address, resolved.family);
+    };
+
+    const request = requestImpl(target, {
+      method: requestOptions.method,
+      headers: requestOptions.headers,
+      agent: false,
+      servername: hostname,
+      rejectUnauthorized: true,
+      lookup: pinnedLookup,
+      timeout: UPSTREAM_TIMEOUT_MS
+    }, (response) => {
+      readBoundedBody(response).then((body) => {
+        resolve({
+          statusCode: response.statusCode || 502,
+          headers: response.headers || {},
+          body
+        });
+      }).catch(reject);
+    });
+
+    request.on("error", reject);
+    request.on("timeout", () => request.destroy(new Error("LinuxCore upstream timed out.")));
+    if (requestOptions.body && requestOptions.body.length) request.write(requestOptions.body);
+    request.end();
+  });
 }
 
 function createGatewayHandler(options) {
   const env = options.env || process.env;
-  const fetchImpl = options.fetchImpl || fetch;
+  const requestImpl = options.requestImpl || https.request;
   const lookupImpl = options.lookupImpl || ((hostname, settings) => dns.lookup(hostname, settings));
   const now = options.now || (() => Math.floor(Date.now() / 1000));
 
@@ -240,35 +312,37 @@ function createGatewayHandler(options) {
       return json(res, 502, { detail: "LinuxCore upstream hostname could not be resolved." });
     }
     if (!Array.isArray(resolvedAddresses) || resolvedAddresses.length === 0 ||
-        resolvedAddresses.some((entry) => !entry || !isPublicAddress(entry.address))) {
+        resolvedAddresses.some((entry) => !entry || !isPublicAddress(entry.address) ||
+          (entry.family !== undefined && entry.family !== net.isIP(entry.address)))) {
       return json(res, 503, { detail: "LinuxCore upstream must resolve only to public IP addresses." });
     }
 
-    const basePath = upstream.pathname.replace(/\/+$/, "");
+    const basePath = upstream.pathname.replace(/\\/+$/, "");
     const target = new URL(basePath + path, upstream.origin);
+    let upstreamResponse;
     try {
-      const upstreamResponse = await fetchImpl(target, {
+      upstreamResponse = await requestPinned(requestImpl, target, {
         method,
         headers: {
           "Authorization": "Bearer " + token,
           "Accept": "application/json",
           ...(method === "POST" ? { "Content-Type": "application/json" } : {})
         },
-        ...(method === "POST" && rawBody.length ? { body: rawBody } : {}),
-        signal: AbortSignal.timeout(55000),
-        redirect: "manual"
-      });
-      const responseBytes = Buffer.from(await upstreamResponse.arrayBuffer());
-      if (responseBytes.length > 2 * 1024 * 1024) return json(res, 502, { detail: "Upstream response exceeded the gateway limit." });
-      res.statusCode = upstreamResponse.status;
-      res.setHeader("Content-Type", upstreamResponse.headers.get("content-type") || "application/json");
-      res.setHeader("Cache-Control", "no-store, max-age=0");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.end(responseBytes);
-    } catch (_) {
+        body: method === "POST" ? rawBody : Buffer.alloc(0)
+      }, resolvedAddresses[0]);
+    } catch (error) {
+      if (error && error.code === "ERR_UPSTREAM_RESPONSE_TOO_LARGE") {
+        return json(res, 502, { detail: "Upstream response exceeded the gateway limit." });
+      }
       return json(res, 502, { detail: "LinuxCore upstream is unavailable." });
     }
+
+    res.statusCode = upstreamResponse.statusCode;
+    res.setHeader("Content-Type", upstreamResponse.headers["content-type"] || "application/json");
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.end(upstreamResponse.body);
   };
 }
 
