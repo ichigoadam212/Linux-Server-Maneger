@@ -188,7 +188,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Startup/status/recovery/smoke probes support backend bearer tokens without exposing them to browser code.
 - [x] Static security checks cover loopback binding, CORS, CSP, tracked secrets and runtime-file exclusions.
 - [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
-- [x] Latest observed GitHub Actions run for this feature branch head: run #312 completed successfully (2026-11-16); 14 gateway tests and 41 backend tests passed.
+- [x] GitHub Actions CI validates the gateway transport and authentication, local proxy, static security checks, loopback smoke tests in both API modes, and the backend API suite.
 
 ### Final local target-device acceptance — only remaining for the phone build
 
