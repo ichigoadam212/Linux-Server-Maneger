@@ -36,6 +36,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Local dashboard API calls pass through a loopback-only same-origin proxy that reads the optional backend token server-side; the browser never receives the bearer token.
 - Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
 - The Vercel adapter provides a password login, signed HttpOnly/Secure/SameSite=Strict session cookie, same-origin write checks, allowlisted API routes, bounded JSON payloads, HTTPS-only upstream validation, DNS checks against private/reserved IP ranges and server-side bearer-token forwarding.
+- The gateway pins outbound HTTPS connections to prevalidated public DNS addresses, streams upstream responses with a 2 MiB ceiling, and bounds its per-instance login-throttle map.
 - Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
@@ -187,7 +188,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Startup/status/recovery/smoke probes support backend bearer tokens without exposing them to browser code.
 - [x] Static security checks cover loopback binding, CORS, CSP, tracked secrets and runtime-file exclusions.
 - [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
-- [x] Latest observed GitHub Actions run for this PR head: run #305 completed successfully (2026-11-15).
+- [x] Latest observed GitHub Actions run for this feature branch head: run #312 completed successfully (2026-11-16); 14 gateway tests and 41 backend tests passed.
 
 ### Final local target-device acceptance — only remaining for the phone build
 
