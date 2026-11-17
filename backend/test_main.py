@@ -377,17 +377,18 @@ def test_managed_services_inventory_rejects_unrelated_pid(monkeypatch, tmp_path)
     assert payload["items"][0]["pid"] is None
 
 
-def test_managed_services_action_runs_only_project_lifecycle_scripts(monkeypatch):
+def test_managed_services_action_is_detached_and_limited_to_allowlisted_action(monkeypatch):
     calls = []
-    monkeypatch.setattr(main, "run_fixed_command", lambda argv, **kwargs: (
-        calls.append(argv) or {"returncode": 0, "stdout": "ok", "stderr": ""}
-    ))
+    monkeypatch.setattr(main.subprocess, "Popen", lambda argv, **kwargs: calls.append((argv, kwargs)))
     result = main.managed_services_action(main.ManagedServiceAction(action="restart"))
     assert result["ok"] is True
+    assert result["scheduled"] is True
     assert result["scope"] == "linuxcore-only"
-    assert calls[0][-1].endswith("/scripts/stop.sh")
-    assert calls[1][-1].endswith("/scripts/start.sh")
-    assert all(argv[0] == "bash" for argv in calls)
+    assert calls[0][0][0] == "bash"
+    assert calls[0][0][-1] == "restart"
+    assert calls[0][1]["start_new_session"] is True
+    assert calls[0][1]["stdin"] == main.subprocess.DEVNULL
+    assert calls[0][1]["stdout"] == main.subprocess.DEVNULL
 
 
 def test_services_report_unavailable_without_user_manager(monkeypatch):
