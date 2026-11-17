@@ -7,7 +7,7 @@ web_is_linuxcore() {
   body="${response%$'\n'*}"
   # A responding HTTP endpoint with a non-success status is not our dashboard.
   [[ "$http_code" == "200" ]] || return 2
-  printf '%s' "$body" | python3 -c 'import sys; h=sys.stdin.read(); raise SystemExit(0 if "<title>LinuxCore | Server Manager</title>" in h and "id=\"main-content\"" in h and "app.js?v=0.7.0" in h else 1)' >/dev/null 2>&1 && return 0
+  printf '%s' "$body" | python3 -c 'import sys; h=sys.stdin.read(); raise SystemExit(0 if "<title>LinuxCore | Server Manager</title>" in h and "id=\"main-content\"" in h and "app.js" in h else 1)' >/dev/null 2>&1 && return 0
   # A successful response without the expected dashboard markers is not ours.
   return 2
 }

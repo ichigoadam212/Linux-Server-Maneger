@@ -36,6 +36,10 @@ PATH="$TEST_BIN:$PATH"
 export PATH
 API_URL="http://127.0.0.1:8000/api/v1/health"
 export API_URL
+LINUXCORE_ROOT="$TEST_BIN/empty-root"
+mkdir -p "$LINUXCORE_ROOT/backend"
+export LINUXCORE_ROOT
+unset LINUXCORE_ACCESS_TOKEN || true
 
 # Avoid delays while keeping the production retry logic unchanged.
 sleep() { :; }

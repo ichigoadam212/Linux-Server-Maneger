@@ -4,7 +4,8 @@ on:
   push:
     branches: [main, "fix/**", "feat/**", "test/**"]
   pull_request:
-    branches: [main]
+    # Include stacked PRs that target an existing feature branch as well as main/fix branches.
+    branches: [main, "fix/**", "feat/**"]
   workflow_dispatch:
 
 permissions:
@@ -44,6 +45,9 @@ jobs:
       - name: Test startup API identity checks
         run: bash ../scripts/test-api-health.sh
 
+      - name: Test local bearer-token probe helper
+        run: bash ../scripts/test-api-auth.sh
+
       - name: Test startup dashboard identity checks
         run: bash ../scripts/test-web-health.sh
 
@@ -53,8 +57,23 @@ jobs:
       - name: Test safe service shutdown
         run: bash ../scripts/test-stop.sh
 
-      - name: Validate frontend JavaScript
-        run: node --check ../frontend/app.js
+      - name: Test LinuxCore supervisor
+        run: bash ../scripts/test-supervisor.sh
+
+      - name: Test systemd user-service installer
+        run: bash ../scripts/test-user-service-installer.sh
+
+      - name: Validate frontend and Vercel gateway JavaScript
+        run: |
+          node --check ../frontend/app.js
+          node --check ../api/_lib/gateway.js
+          node --check '../api/[...path].js'
+
+      - name: Test authenticated Vercel gateway
+        run: node --test ../scripts/test-vercel-gateway.cjs
+
+      - name: Test loopback local dashboard proxy
+        run: python ../scripts/test-local-web.py
 
       - name: Verify dashboard live-data contract
         run: bash ../scripts/test-frontend-contract.sh
@@ -62,25 +81,39 @@ jobs:
       - name: Run local security checks
         run: bash ../scripts/security-check.sh
 
-      - name: Run local end-to-end smoke test
+      - name: Run local end-to-end smoke test (open and token-protected modes)
         run: |
           set -euo pipefail
-          python -m uvicorn main:app --host 127.0.0.1 --port 8000 >/tmp/linuxcore-api.log 2>&1 &
-          API_PID=$!
-          python -m http.server 8080 --directory ../frontend --bind 127.0.0.1 >/tmp/linuxcore-web.log 2>&1 &
-          WEB_PID=$!
-          trap 'kill "$WEB_PID" "$API_PID" 2>/dev/null || true' EXIT
-          ready=false
-          for attempt in {1..40}; do
-            if curl --fail --silent http://127.0.0.1:8000/api/v1/health >/dev/null &&
-               curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
-              ready=true
-              break
-            fi
-            sleep 0.5
-          done
-          [[ "$ready" == true ]] || { cat /tmp/linuxcore-api.log /tmp/linuxcore-web.log; exit 1; }
-          bash ../scripts/smoke-test.sh
+          cleanup() {
+            if [[ -n "${WEB_PID:-}" ]]; then kill "$WEB_PID" 2>/dev/null || true; wait "$WEB_PID" 2>/dev/null || true; unset WEB_PID; fi
+            if [[ -n "${API_PID:-}" ]]; then kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; unset API_PID; fi
+          }
+          trap cleanup EXIT
+          run_smoke() {
+            export LINUXCORE_ACCESS_TOKEN="$1"
+            python -m uvicorn main:app --host 127.0.0.1 --port 8000 >/tmp/linuxcore-api.log 2>&1 &
+            API_PID=$!
+            python ../scripts/local-web.py --directory ../frontend --bind 127.0.0.1 --port 8080 >/tmp/linuxcore-web.log 2>&1 &
+            WEB_PID=$!
+            source ../scripts/lib/api-auth.sh
+            ready=false
+            for attempt in {1..40}; do
+              if linuxcore_curl --fail --silent http://127.0.0.1:8000/api/v1/health >/dev/null &&
+                 curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+                ready=true
+                break
+              fi
+              sleep 0.5
+            done
+            [[ "$ready" == true ]] || { cat /tmp/linuxcore-api.log /tmp/linuxcore-web.log; return 1; }
+            curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health |
+              python -c 'import json,sys; d=json.load(sys.stdin); assert d.get("status") == "ok" and d.get("service") == "linuxcore-api"'
+            bash ../scripts/smoke-test.sh
+            bash ../scripts/status.sh
+            cleanup
+          }
+          run_smoke ""
+          run_smoke "$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
 
       - name: Run backend tests
         run: pytest -q

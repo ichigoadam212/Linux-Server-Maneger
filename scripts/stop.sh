@@ -25,6 +25,6 @@ stop_pid() {
   return 1
 }
 result=0
-stop_pid "$RUNTIME/web.pid" "Website" "http.server 8080" || result=1
+stop_pid "$RUNTIME/web.pid" "Website" "local-web.py --directory" || result=1
 stop_pid "$RUNTIME/api.pid" "API" "uvicorn main:app" || result=1
 exit "$result"

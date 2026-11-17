@@ -11,7 +11,7 @@ cat > "$TEST_ROOT/bin/ps" <<'PS'
 #!/usr/bin/env bash
 pid="$2"
 if [[ "$pid" == "${FAKE_WEB_PID:-}" ]]; then
-  echo "python3 -m http.server 8080 --directory frontend"
+  echo "python3 /repo/scripts/local-web.py --directory /repo/frontend --bind 127.0.0.1 --port 8080"
 elif [[ "$pid" == "${FAKE_API_PID:-}" ]]; then
   echo "uvicorn main:app --host 127.0.0.1 --port 8000"
 else
