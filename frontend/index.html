@@ -68,10 +68,10 @@
           <div class="ai-messages" id="aiMessages"><div class="ai-message assistant"><span class="ai-who">LINUXCORE AI</span><p data-i18n="aiWelcome">Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.</p></div></div>
           <div class="ai-compose"><textarea id="aiInput" rows="2" placeholder="Ask LinuxCore AI something..."></textarea><button id="aiSend" class="ai-send" type="button">Send</button></div>
         </div>
-        <aside class="ai-info"><h3>PRIVACY & CONTEXT</h3><label class="ai-check"><input type="checkbox" id="aiIncludeContext"><span id="aiContextLabel">Include aggregate host metrics in this request</span></label><p id="aiPrivacy">Only aggregate CPU, memory, disk, uptime and storage summary are shared. No process details or secrets.</p><div id="aiSetup" class="ai-setup">Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.</div></aside>
+        <aside class="ai-info"><h3>PRIVACY & CONTEXT</h3><label class="ai-check"><input type="checkbox" id="aiIncludeContext"><span id="aiContextLabel">Include aggregate host metrics in this request</span></label><p id="aiPrivacy">Chat messages are sent to DeepSeek; do not include passwords, API keys or private keys. If enabled, this request also shares aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary. No process command lines, environment variables, usernames or secrets.</p><div id="aiSetup" class="ai-setup">Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.</div></aside>
       </section>
       <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.7.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
     </main>
   </div>
-  <div id="toast" role="status"></div><script src="app.js?v=0.7.3" defer></script>
+  <div id="toast" role="status"></div><script src="app.js?v=0.7.4" defer></script>
 </body></html>
