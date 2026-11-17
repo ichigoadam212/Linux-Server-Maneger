@@ -262,24 +262,56 @@ class ManagedServiceAction(BaseModel):
     action: Literal["start", "stop", "restart"]
 
 
+def command_matches_checkout_prefix(command_parts: list[str], expected_prefixes: list[list[str]]) -> bool:
+    """Match the exact argv prefix used by start.sh; never accept a path found later as data."""
+    for expected_prefix in expected_prefixes:
+        if len(command_parts) < len(expected_prefix):
+            continue
+        matches = True
+        for actual, expected in zip(command_parts, expected_prefix):
+            if os.path.isabs(expected):
+                if not isinstance(actual, str) or not os.path.isabs(actual):
+                    matches = False
+                    break
+                if os.path.realpath(actual) != os.path.realpath(expected):
+                    matches = False
+                    break
+            elif actual != expected:
+                matches = False
+                break
+        if matches:
+            return True
+    return False
+
+
 def managed_services_inventory():
     """Inspect only PID files owned by this checkout and verify process identity."""
     root = Path(__file__).resolve().parent.parent
     runtime = root / ".runtime"
+    python = root / "backend/.venv/bin/python"
+    uvicorn = root / "backend/.venv/bin/uvicorn"
+    dashboard = root / "scripts/local-web.py"
+    frontend = root / "frontend"
     definitions = [
-        ("linuxcore-api", runtime / "api.pid", "uvicorn main:app"),
-        ("linuxcore-dashboard", runtime / "web.pid", "local-web.py --directory"),
+        ("linuxcore-api", runtime / "api.pid", [
+            [str(python), str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+            [str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+        ]),
+        ("linuxcore-dashboard", runtime / "web.pid", [[
+            str(python), str(dashboard), "--directory", str(frontend),
+            "--bind", "127.0.0.1", "--port", "8080",
+        ]]),
     ]
     items = []
-    for name, pid_file, expected in definitions:
+    for name, pid_file, expected_prefixes in definitions:
         pid = None
         state = "stopped"
         if pid_file.is_file():
             try:
                 candidate = int(pid_file.read_text(encoding="utf-8").strip())
                 process = psutil.Process(candidate)
-                command = " ".join(process.cmdline())
-                if expected in command and str(root) in command:
+                command_parts = process.cmdline()
+                if command_matches_checkout_prefix(command_parts, expected_prefixes):
                     pid, state = candidate, "running"
                 else:
                     state = "identity_mismatch"

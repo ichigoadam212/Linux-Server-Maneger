@@ -2,8 +2,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME="$ROOT/.runtime"
+VENV="$ROOT/backend/.venv"
 stop_pid() {
-  local file="$1" label="$2" expected="$3"
+  local file="$1" label="$2" expected_prefix="$3"
   if [[ ! -f "$file" ]]; then echo "$label: not running (no PID file)"; return 0; fi
   local pid
   pid="$(cat "$file")"
@@ -11,7 +12,8 @@ stop_pid() {
   if ! kill -0 "$pid" 2>/dev/null; then echo "$label: stale PID file cleaned"; rm -f "$file"; return 0; fi
   local command_line
   command_line="$(ps -p "$pid" -o args= 2>/dev/null || true)"
-  if [[ "$command_line" != *"$expected"* || "$command_line" != *"$ROOT"* ]]; then
+  # Match the exact command prefix created by start.sh; substring matches can hit sibling checkouts.
+  if [[ "$command_line" != "$expected_prefix "* ]]; then
     echo "$label: PID $pid does not match the expected service; left untouched"
     echo "PID file retained for manual inspection: $file"
     return 1
@@ -25,6 +27,6 @@ stop_pid() {
   return 1
 }
 result=0
-stop_pid "$RUNTIME/web.pid" "Website" "local-web.py --directory" || result=1
-stop_pid "$RUNTIME/api.pid" "API" "uvicorn main:app" || result=1
+stop_pid "$RUNTIME/web.pid" "Website" "$VENV/bin/python $ROOT/scripts/local-web.py --directory $ROOT/frontend" || result=1
+stop_pid "$RUNTIME/api.pid" "API" "$VENV/bin/python $VENV/bin/uvicorn main:app" || result=1
 exit "$result"
