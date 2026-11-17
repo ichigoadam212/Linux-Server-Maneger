@@ -420,6 +420,8 @@ async function postJson(url, body, timeoutMs) {
 }
 
 async function renderModule(page) {
+  // A delayed action from an old module must not mutate the currently visible module.
+  if (currentPage !== page) return;
   const requestId = ++moduleRequestId;
   const isArabic = lang === "ar";
   const content = byId("moduleContent");
@@ -533,11 +535,11 @@ async function renderModule(page) {
         });
         content.append(actions);
       } else {
-        moduleNotice(managedResult.status === "rejected" ? t("apiUnavailable") : t("noData"));
+        moduleNotice(managedResult.status === "rejected" ? (managedResult.reason?.message || t("apiUnavailable")) : t("noData"));
       }
       moduleNotice(isArabic ? "خدمات systemd الخاصة بالمستخدم" : "systemd user services");
       if (systemdResult.status === "rejected") {
-        moduleNotice(t("apiUnavailable"));
+        moduleNotice(systemdResult.reason?.message || t("apiUnavailable"));
       } else if (!systemdResult.value.available) {
         moduleNotice(systemdResult.value.reason || t("systemdUnavailableDetail"));
       } else {
