@@ -262,6 +262,21 @@ class ManagedServiceAction(BaseModel):
     action: Literal["start", "stop", "restart"]
 
 
+def command_contains_checkout_path(command_parts: list[str], root: Path) -> bool:
+    """Return true only when a process argument resolves inside this exact checkout."""
+    root_path = os.path.realpath(str(root))
+    for argument in command_parts:
+        if not isinstance(argument, str) or not os.path.isabs(argument):
+            continue
+        candidate = os.path.realpath(argument)
+        try:
+            if os.path.commonpath((root_path, candidate)) == root_path:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def managed_services_inventory():
     """Inspect only PID files owned by this checkout and verify process identity."""
     root = Path(__file__).resolve().parent.parent
@@ -278,8 +293,9 @@ def managed_services_inventory():
             try:
                 candidate = int(pid_file.read_text(encoding="utf-8").strip())
                 process = psutil.Process(candidate)
-                command = " ".join(process.cmdline())
-                if expected in command and str(root) in command:
+                command_parts = process.cmdline()
+                command = " ".join(command_parts)
+                if expected in command and command_contains_checkout_path(command_parts, root):
                     pid, state = candidate, "running"
                 else:
                     state = "identity_mismatch"
