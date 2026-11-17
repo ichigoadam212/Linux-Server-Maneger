@@ -24,7 +24,7 @@ require_text "$JS" 'managedResult.reason?.message' "managed-service API error de
 require_text "$JS" 'systemdResult.reason?.message' "systemd API error detail is discarded"
 render_module_line="$(grep -n -F 'async function renderModule(page)' "$JS" | head -n 1 | cut -d: -f1)"
 [[ -n "$render_module_line" ]] || { echo "FAIL: module renderer is missing" >&2; exit 1; }
-render_module_guard_line=$((render_module_line + 1))
+render_module_guard_line=$((render_module_line + 2))
 [[ "$(sed -n "${render_module_guard_line}p" "$JS")" == *'if (currentPage !== page) return;'* ]] || {
   echo "FAIL: stale module renders are not rejected before changing the UI" >&2
   exit 1
