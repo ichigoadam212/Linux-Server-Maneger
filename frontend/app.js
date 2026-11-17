@@ -16,7 +16,7 @@ const translations = {
     overviewSub:"Monitor your Linux environment from one command center.", refresh:"Refresh",
     systemHealth:"SYSTEM HEALTH", serviceStatus:"Service status", viewAll:"VIEW ALL ↗", monitoring:"MONITORING",
     recentActivity:"Recent activity", environmentCapabilities:"Environment capabilities", liveChecks:"LIVE CHECKS",
-    loadingOverview:"Loading live environment data…", noUserServices:"No user services were discovered.",
+    loadingOverview:"Loading live environment data…", loadingData:"Loading module data…", noUserServices:"No user services were discovered.",
     serviceUnavailable:"User service manager is unavailable in this Linux environment.",
     activeState:"Active", inactiveState:"Not active", capabilityAvailable:"Available", capabilityUnavailable:"Unavailable",
     userServices:"User services", rootlessContainers:"Rootless containers", networkCounters:"Network counters",
@@ -49,7 +49,7 @@ const translations = {
     overviewSub:"راقب بيئة Linux من مركز تحكم واحد.", refresh:"تحديث",
     systemHealth:"حالة النظام", serviceStatus:"حالة الخدمات", viewAll:"عرض الكل ↗", monitoring:"المراقبة",
     recentActivity:"النشاط الأخير", environmentCapabilities:"إمكانيات البيئة", liveChecks:"فحوصات مباشرة",
-    loadingOverview:"جاري تحميل بيانات البيئة الفعلية…", noUserServices:"لم يتم العثور على خدمات للمستخدم.",
+    loadingOverview:"جاري تحميل بيانات البيئة الفعلية…", loadingData:"جاري تحميل بيانات الوحدة…", noUserServices:"لم يتم العثور على خدمات للمستخدم.",
     serviceUnavailable:"مدير خدمات المستخدم غير متاح في بيئة Linux الحالية.",
     activeState:"نشطة", inactiveState:"غير نشطة", capabilityAvailable:"متاح", capabilityUnavailable:"غير متاح",
     userServices:"خدمات المستخدم", rootlessContainers:"الحاويات Rootless", networkCounters:"عدادات الشبكة",
@@ -213,7 +213,11 @@ function hideAuthGate() {
 async function fetchJson(url, options) {
   const response = await fetch(url, { credentials: "same-origin", ...(options || {}) });
   if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
-  if (!response.ok) throw new Error("HTTP " + response.status);
+  if (!response.ok) {
+    const payload = await response.clone().json().catch(() => null);
+    const detail = payload && typeof payload.detail === "string" ? payload.detail : "";
+    throw new Error(detail || "HTTP " + response.status);
+  }
   return response.json();
 }
 
@@ -421,6 +425,9 @@ async function renderModule(page) {
   const content = byId("moduleContent");
   if (!content) return;
   content.replaceChildren();
+  const loadingNotice = moduleNode("div", "module-notice", t("loadingData"));
+  loadingNotice.setAttribute("role", "status");
+  content.append(loadingNotice);
 
   const titles = {
     services: t("services"), storage: t("storage"), processes: t("processes"),
@@ -446,6 +453,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(30000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       const capabilities = data.capabilities || {};
       const host = data.host || {};
       const services = capabilities.user_services || {};
@@ -477,7 +485,10 @@ async function renderModule(page) {
         ? "بيانات الفحص الفعلية من بيئة Linux الحالية. الإمكانيات غير المتاحة لا يتم محاكاتها."
         : "Live checks from the current Linux environment. Unsupported capabilities are reported, never simulated.");
     } catch (error) {
-      if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
+      if (requestId === moduleRequestId && currentPage === page) {
+        loadingNotice.remove();
+        moduleNotice(error.message || t("apiUnavailable"));
+      }
     }
     return;
   }
@@ -489,6 +500,7 @@ async function renderModule(page) {
         fetchJson(API_BASE + "/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)})
       ]);
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       if (managedResult.status === "fulfilled" && managedResult.value.available) {
         const managed = managedResult.value;
         moduleNotice(t("linuxcoreOwned") + " · " + managed.manager);
@@ -559,6 +571,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(12000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       if (!data.available) { moduleNotice(data.reason || t("noData")); return; }
       moduleNotice((isArabic ? "بيئة الحاويات: " : "Container runtime: ") + data.runtime);
       const items = Array.isArray(data.items) ? data.items : [];
@@ -588,6 +601,7 @@ async function renderModule(page) {
     }
 
     if (page === "terminal") {
+      loadingNotice.remove();
       moduleNotice(t("terminalDisabled"));
       const output = moduleNode("pre", "terminal-output",
         isArabic ? "اختار أمر تشخيص من الأزرار لعرض النتيجة هنا." : "Choose a diagnostic preset to view its output here.");
@@ -618,6 +632,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       const summary = moduleNode("div", "module-stat");
       summary.append(moduleNode("b", "", isArabic ? "نتيجة الفحص" : "Health check"),
         moduleNode("span", "", data.healthy ? (isArabic ? "سليم" : "Healthy") : (isArabic ? "يحتاج مراجعة" : "Needs attention")));
@@ -654,6 +669,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(8000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       [
         ["AI provider", data.provider || "DeepSeek"],
         ["Model", data.model || "—"],
@@ -672,11 +688,12 @@ async function renderModule(page) {
 
     const endpoints = { storage: "storage", processes: "processes", network: "network" };
     const endpoint = endpoints[page];
-    if (!endpoint) { moduleNotice(t("noData")); return; }
+    if (!endpoint) { loadingNotice.remove(); moduleNotice(t("noData")); return; }
     const data = await fetchJson(API_BASE + "/api/v1/" + endpoint, {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     if (requestId !== moduleRequestId || currentPage !== page) return;
+    loadingNotice.remove();
     if (page === "network" && data.available === false) {
       moduleNotice(data.reason || t("unavailableNetwork")); return;
     }
@@ -709,7 +726,10 @@ async function renderModule(page) {
       if (interfaces.length === 0) moduleNotice(t("noData"));
     }
   } catch (error) {
-    if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
+    if (requestId === moduleRequestId && currentPage === page) {
+      loadingNotice.remove();
+      moduleNotice(error.message || t("apiUnavailable"));
+    }
   }
 }
 
