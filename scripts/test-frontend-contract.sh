@@ -20,6 +20,15 @@ require_text "$JS" 'loadingNotice.setAttribute("role", "status")' "module loadin
 require_text "$JS" 'loadingNotice.remove()' "module loading state is not cleared after requests"
 require_text "$JS" 'response.clone().json()' "API error responses are not parsed safely"
 require_text "$JS" 'payload.detail' "API detail messages are not surfaced"
+require_text "$JS" 'managedResult.reason?.message' "managed-service API error detail is discarded"
+require_text "$JS" 'systemdResult.reason?.message' "systemd API error detail is discarded"
+render_module_line="$(grep -n -F 'async function renderModule(page)' "$JS" | head -n 1 | cut -d: -f1)"
+[[ -n "$render_module_line" ]] || { echo "FAIL: module renderer is missing" >&2; exit 1; }
+render_module_guard_line=$((render_module_line + 1))
+[[ "$(sed -n "${render_module_guard_line}p" "$JS")" == *'if (currentPage !== page) return;'* ]] || {
+  echo "FAIL: stale module renders are not rejected before changing the UI" >&2
+  exit 1
+}
 require_text "$HTML" 'id="moduleContent" class="module-content" aria-live="polite"' "module updates are not announced accessibly"
 require_text "$HTML" 'app.js?v=0.7.3' "frontend cache version was not bumped"
 require_text "$JS" '/api/v1/services' "overview does not query user services"
