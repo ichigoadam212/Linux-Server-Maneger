@@ -15,7 +15,7 @@ if [[ "$pid" == "${FAKE_WEB_PID:-}" ]]; then
 elif [[ "$pid" == "${FAKE_API_PID:-}" ]]; then
   echo "${FAKE_ROOT}/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
 elif [[ "$pid" == "${FAKE_FOREIGN_MATCH_PID:-}" ]]; then
-  echo "/other/checkout/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
+  echo "${FAKE_ROOT}-old/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
 else
   echo "unrelated process"
 fi
@@ -55,15 +55,15 @@ kill "$FOREIGN_PID" 2>/dev/null || true
 wait "$FOREIGN_PID" 2>/dev/null || true
 unset FOREIGN_PID
 
-# A reused PID running the same entry point from a different checkout is never signalled.
+# A prefix-related sibling checkout (repo-old) must never match repo.
 start_detached_sleep "$TEST_ROOT/foreign-match.pid"
 FOREIGN_PID="$(cat "$TEST_ROOT/foreign-match.pid")"
 export FAKE_FOREIGN_MATCH_PID="$FOREIGN_PID"
 printf '%s\n' "$FOREIGN_PID" > "$TEST_ROOT/repo/.runtime/api.pid"
 if bash "$TEST_ROOT/repo/scripts/stop.sh" > "$TEST_ROOT/foreign-checkout.log" 2>&1; then
-  fail "same command from a different checkout was reported as stopped"
+  fail "prefix-related sibling checkout was reported as stopped"
 fi
-kill -0 "$FOREIGN_PID" 2>/dev/null || fail "different-checkout process was terminated"
+kill -0 "$FOREIGN_PID" 2>/dev/null || fail "prefix-related sibling process was terminated"
 [[ -f "$TEST_ROOT/repo/.runtime/api.pid" ]] || fail "different-checkout PID file was removed"
 kill "$FOREIGN_PID" 2>/dev/null || true
 wait "$FOREIGN_PID" 2>/dev/null || true
