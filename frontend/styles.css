@@ -30,3 +30,36 @@ button,.nav-item,.lang-btn,.outline-btn{touch-action:manipulation}
 .terminal-actions{justify-content:flex-start;margin:14px 0}
 .terminal-output{min-height:150px;max-height:420px;overflow:auto;padding:15px;border:1px solid var(--line);border-radius:8px;background:#070d16;color:#b9eaf0;font:11px/1.65 'IBM Plex Mono',monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:760px){.operation-row{align-items:flex-start;flex-direction:column}.operation-actions{justify-content:flex-start}.operation-actions .outline-btn{padding:8px 10px}}
+
+
+/* v0.7.2 mobile usability pass */
+@media(max-width:760px){
+  .sidebar{width:56px;padding:14px 6px}
+  .brand{padding:0 3px 22px}
+  .nav-item{min-height:42px;padding:10px 3px;gap:0}
+  .main{width:calc(100% - 56px);padding:0 12px}
+  .ai-workspace{grid-template-columns:minmax(0,1fr);gap:10px;margin:14px 0 20px}
+  .ai-chat{order:0;min-height:360px}
+  .ai-info{order:1;padding:13px}
+  .ai-chat-head{gap:10px;align-items:flex-start}
+  .ai-chat-head h2{font-size:14px}
+  .ai-messages{min-height:210px;max-height:340px;padding:12px}
+  .ai-message{max-width:96%;padding:10px 11px}
+  .ai-message p{font-size:12px}
+  .ai-compose{gap:7px;padding:9px}
+  .ai-compose textarea{min-width:0;min-height:46px;max-height:110px;padding:10px;font-size:16px}
+  .ai-send{min-width:58px;padding:0 10px}
+  .system-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fact-card:last-child{grid-column:1/-1}
+}
+@media(max-width:390px){
+  .main{padding:0 9px}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric-card{min-height:126px;padding:11px}
+  .metric-value strong{font-size:23px}
+  .system-facts{grid-template-columns:1fr}
+  .fact-card:last-child{grid-column:auto}
+  .ai-chat{min-height:330px}
+  .ai-messages{min-height:190px;max-height:290px}
+  .ai-chat-head{flex-direction:column}
+}
