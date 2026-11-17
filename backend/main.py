@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import hmac
+import ipaddress
 import os
 import json
 import platform
@@ -16,7 +18,8 @@ import psutil
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).with_name(".env"))
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -28,6 +31,58 @@ async def prevent_api_response_caching(request, call_next):
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
+    return response
+
+
+def is_loopback_client(request: Request) -> bool:
+    client = request.client
+    host = client.host if client else ""
+    if host == "testclient":
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+        return address.is_loopback or (
+            isinstance(address, ipaddress.IPv6Address)
+            and address.ipv4_mapped is not None
+            and address.ipv4_mapped.is_loopback
+        )
+    except ValueError:
+        return False
+
+
+@app.middleware("http")
+async def protect_remote_api_access(request: Request, call_next):
+    if not request.url.path.startswith("/api/"):
+        return await call_next(request)
+
+    configured_token = os.getenv("LINUXCORE_ACCESS_TOKEN", "").strip()
+    if not configured_token and is_loopback_client(request):
+        return await call_next(request)
+
+    if len(configured_token) < 32:
+        response = JSONResponse(
+            status_code=503,
+            content={"detail": "Remote API access is disabled until a strong LINUXCORE_ACCESS_TOKEN is configured."},
+        )
+    else:
+        scheme, separator, supplied_token = request.headers.get("authorization", "").partition(" ")
+        valid = (
+            separator == " "
+            and scheme.lower() == "bearer"
+            and bool(supplied_token)
+            and hmac.compare_digest(supplied_token, configured_token)
+        )
+        if not valid:
+            response = JSONResponse(
+                status_code=401,
+                content={"detail": "A valid bearer token is required for remote API access."},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        else:
+            return await call_next(request)
+
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     return response
 
 

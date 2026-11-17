@@ -55,7 +55,7 @@ else
     echo "Port 8080 responds, but it is not the LinuxCore dashboard; refusing to treat it as healthy." >&2
     exit 1
   fi
-  nohup python3 -m http.server 8080 --directory "$ROOT/frontend" --bind 127.0.0.1 >"$RUNTIME/web.log" 2>&1 &
+  nohup "$VENV/bin/python" "$ROOT/scripts/local-web.py" --directory "$ROOT/frontend" --bind 127.0.0.1 --port 8080 >"$RUNTIME/web.log" 2>&1 &
   echo $! >"$RUNTIME/web.pid"
 fi
 

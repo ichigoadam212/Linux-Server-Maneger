@@ -32,11 +32,17 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
-- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown tests, frontend contract checks and shell syntax validation in GitHub Actions.
+- Optional foreground supervisor with bounded health retries and graceful child cleanup, plus an opt-in systemd user service installer that refuses root/overwrite and rolls back failed installation attempts.
+- Local dashboard API calls pass through a loopback-only same-origin proxy that reads the optional backend token server-side; the browser never receives the bearer token.
+- Remote API requests are denied by default and require a server-side bearer token when routed through a trusted HTTPS gateway; the token is never exposed to the browser.
+- The Vercel adapter provides a password login, signed HttpOnly/Secure/SameSite=Strict session cookie, same-origin write checks, allowlisted API routes, bounded JSON payloads, HTTPS-only upstream validation, DNS checks against private/reserved IP ranges and server-side bearer-token forwarding.
+- The gateway pins outbound HTTPS connections to prevalidated public DNS addresses, streams upstream responses with a 2 MiB ceiling, and bounds its per-instance login-throttle map.
+- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown and supervisor tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
 
     frontend/                 Website files
+    api/                      Vercel login/session gateway and allowlisted API proxy
     backend/                  FastAPI service and tests
     scripts/                  Linux setup and lifecycle scripts
     docs/                     Deployment and shared-host notes
@@ -53,9 +59,11 @@ Open the dashboard on the same device:
 
     http://127.0.0.1:8080
 
-Backend health:
+Backend health (direct API requests require the configured bearer token once remote protection is enabled):
 
     http://127.0.0.1:8000/api/v1/health
+
+For local checks that read the token safely from backend/.env, use bash scripts/status.sh or bash scripts/smoke-test.sh. The browser dashboard uses the same-origin loopback proxy and never receives the token.
 
 Check both services:
 
@@ -80,6 +88,28 @@ Run controlled recovery:
 Stop both LinuxCore services:
 
     bash scripts/stop.sh
+
+### Keep LinuxCore running in a Linux user session
+
+On a VPS or Linux distribution with a working systemd user manager, install the optional user service:
+
+    bash scripts/install-user-service.sh
+
+Check it with:
+
+    systemctl --user status linuxcore.service
+
+The service runs as the current user, starts the local API and a loopback-only same-origin dashboard/API proxy, checks them periodically, and lets systemd restart the supervisor after repeated failures. It does not grant root access or change the loopback-only network binding. For it to start at boot and remain active after logout, a VPS administrator must separately enable systemd user lingering for this account; the installer deliberately does not change that host policy.
+
+In PRoot/Andronix environments without a systemd user manager, run the supervisor in the foreground:
+
+    bash scripts/linuxcore-supervisor.sh run
+
+Keep that terminal/session alive. The supervisor retries failed start/health checks at a bounded interval and exits after repeated failures; it cannot keep running if Android kills or suspends the Linux environment. Do not run multiple supervisors for the same repository.
+
+To disable the systemd user service:
+
+    systemctl --user disable --now linuxcore.service
 
 The start script creates a virtual environment without requiring Android root. If Python's venv module or pip is missing, install the corresponding packages inside the Linux distribution using the package manager and its available permissions. Some Andronix/PRoot environments restrict package installation, systemd user sessions, container runtimes, or host metrics. Unsupported capabilities are reported as unavailable instead of being simulated.
 
@@ -129,7 +159,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - AI is advisory-only and must not be treated as an execution agent.
 - Recovery operates only on this repository's own local startup scripts and backs up the backend environment file before running them.
 - Never commit API keys, passwords, private keys or populated environment files.
-- Do not expose this development service to a public network. Remote access requires a separate authenticated design, TLS, authorization, rate limiting, audit logging and secure secret storage.
+- The default API remains loopback-only. Remote API requests fail closed unless a strong server-side bearer token is configured; a public dashboard still needs a user login/session gateway, TLS, rate limiting, audit logging and secure secret storage.
 
 ## Environment-specific limitations
 
@@ -138,21 +168,43 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
-- Android background persistence, exact resource readings and startup behavior require testing on the target phone.
+- Public Vercel access requires the gateway's four server-side variables, a protected Vercel project, platform-level login rate limiting/WAF, HTTPS VPS origin, and server-side secret configuration. The API bearer token alone is not a public login system.
+- The gateway's in-memory sign-in throttle is only a best-effort per-instance guard; configure Vercel Firewall rate limiting before any external access. On the current Hobby team, Vercel Authentication protects Preview/deployment URLs but not a Production custom domain; the gateway login must be configured and verified before production.
+- The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
+- The foreground supervisor needs its parent Linux session to remain alive; Android background persistence, exact resource readings and startup behavior require testing on the target phone.
 - JARVIS shared-runtime integration and the Android bridge are separate work and are not implemented here.
 - Recovery can restart LinuxCore-owned processes, but it cannot guarantee repair of Android, the Linux distribution itself, or unrelated services.
 
-## Validation checklist
+## Validation status
 
-- [x] Backend API and input-validation tests pass in CI.
-- [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
-- [x] Shell syntax, startup API/dashboard identity, recovery rollback and safe shutdown tests pass in CI.
-- [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
-- [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
-- [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
-- [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
-- [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
-- [ ] **Final device stage:** verify start/stop/recovery and background/resume behavior on Android.
+### Automated code acceptance
+
+- [x] Backend API and input-validation tests pass in GitHub Actions.
+- [x] Frontend JavaScript syntax and live-data contract checks pass.
+- [x] Shell syntax, startup identity, recovery rollback, safe shutdown, supervisor and systemd user-service installer tests pass.
+- [x] Remote API tests verify default-deny, bearer-token validation, weak-token rejection, forwarded-IP spoofing resistance and loopback-proxy token enforcement.
+- [x] End-to-end smoke tests pass in both open and token-protected modes through the same-origin local proxy.
+- [x] Local proxy tests cover server-side token forwarding, fixed loopback origin, allowlisted paths, body limits, dotenv parsing and redirects.
+- [x] Startup/status/recovery/smoke probes support backend bearer tokens without exposing them to browser code.
+- [x] Static security checks cover loopback binding, CORS, CSP, tracked secrets and runtime-file exclusions.
+- [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
+- [x] GitHub Actions CI validates the gateway transport and authentication, local proxy, static security checks, loopback smoke tests in both API modes, and the backend API suite.
+
+### Final local target-device acceptance — only remaining for the phone build
+
+- [ ] Pull the reviewed branch on the target phone, start LinuxCore and run `bash scripts/smoke-test.sh`.
+- [ ] Confirm the dashboard and Arabic/English layout in the phone browser.
+- [ ] Record which user-service manager and rootless container runtime are actually available on the phone.
+- [ ] Confirm start/stop/recovery behavior when Android backgrounds the Linux environment.
+
+### Deferred: optional VPS and public hosting
+
+These are not prerequisites for local phone testing and remain intentionally deferred. No VPS is connected to Termalin or SentinelX, and no Vercel settings or deployment changes are part of this stage.
+
+- [ ] Validate systemd user-service lifecycle and lingering on a compatible VPS.
+- [ ] Configure a real HTTPS VPS origin and matching server-side bearer token before enabling remote gateway access.
+- [ ] Configure Vercel server-side secrets and platform-level login rate limiting only after the owner explicitly resumes the Vercel work and approves any usage-based charges.
+- [ ] Run end-to-end gateway-to-VPS tests after a real host is connected.
 
 ## License
 

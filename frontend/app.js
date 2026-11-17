@@ -1,5 +1,8 @@
 "use strict";
 
+const IS_LOCAL_HOST = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+const API_BASE = ""; // Both local and hosted dashboards use their same-origin API proxy.
+
 const translations = {
   en: {
     workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
@@ -185,8 +188,29 @@ function rate(bytes, oldBytes, seconds) {
   return Math.max(0, (bytes - oldBytes) / seconds / 1048576);
 }
 
+function showAuthGate(message) {
+  const gate = byId("authGate");
+  if (!gate || IS_LOCAL_HOST) return;
+  gate.hidden = false;
+  gate.style.display = "grid";
+  const error = byId("authError");
+  if (error) error.textContent = message || (lang === "ar" ? "سجّل الدخول لمتابعة التحكم." : "Sign in to continue.");
+  const password = byId("authPassword");
+  if (password) password.focus();
+}
+
+function hideAuthGate() {
+  const gate = byId("authGate");
+  if (gate) { gate.hidden = true; gate.style.display = "none"; }
+  const error = byId("authError");
+  if (error) error.textContent = "";
+  const password = byId("authPassword");
+  if (password) password.value = "";
+}
+
 async function fetchJson(url, options) {
-  const response = await fetch(url, options || {});
+  const response = await fetch(url, { credentials: "same-origin", ...(options || {}) });
+  if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
   if (!response.ok) throw new Error("HTTP " + response.status);
   return response.json();
 }
@@ -194,7 +218,7 @@ async function fetchJson(url, options) {
 async function loadMetrics(showToast) {
   const requestId = ++metricsRequestId;
   try {
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/metrics", {
+    const data = await fetchJson(API_BASE + "/api/v1/metrics", {
       cache: "no-store",
       signal: AbortSignal.timeout(5000)
     });
@@ -262,8 +286,8 @@ async function loadOverviewPanels() {
   serviceRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
   capabilityRoot.replaceChildren(moduleNode("div", "module-notice", t("loadingOverview")));
   const results = await Promise.allSettled([
-    fetchJson("http://127.0.0.1:8000/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
-    fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {cache:"no-store", signal:AbortSignal.timeout(30000)})
+    fetchJson(API_BASE + "/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
+    fetchJson(API_BASE + "/api/v1/diagnostics", {cache:"no-store", signal:AbortSignal.timeout(30000)})
   ]);
   if (requestId !== overviewRequestId || currentPage !== "overview") return;
   serviceRoot.replaceChildren();
@@ -416,7 +440,7 @@ async function renderModule(page) {
 
   if (page === "security") {
     try {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/diagnostics", {
+      const data = await fetchJson(API_BASE + "/api/v1/diagnostics", {
         cache: "no-store", signal: AbortSignal.timeout(30000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -458,7 +482,7 @@ async function renderModule(page) {
 
   try {
     if (page === "services") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/services", {
+      const data = await fetchJson(API_BASE + "/api/v1/services", {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -477,7 +501,7 @@ async function renderModule(page) {
             isArabic ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
             async () => {
               try {
-                await postJson("http://127.0.0.1:8000/api/v1/services/" +
+                await postJson(API_BASE + "/api/v1/services/" +
                   encodeURIComponent(item.unit) + "/action", {action}, 25000);
                 toast(isArabic ? "تم إرسال الإجراء للخدمة" : "Service action completed");
                 renderModule("services");
@@ -492,7 +516,7 @@ async function renderModule(page) {
     }
 
     if (page === "containers") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/containers", {
+      const data = await fetchJson(API_BASE + "/api/v1/containers", {
         cache: "no-store", signal: AbortSignal.timeout(12000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -511,7 +535,7 @@ async function renderModule(page) {
             ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
           async () => {
             try {
-              await postJson("http://127.0.0.1:8000/api/v1/containers/" +
+              await postJson(API_BASE + "/api/v1/containers/" +
                 encodeURIComponent(item.id || item.name) + "/action", {action}, 35000);
               toast(isArabic ? "تم تنفيذ الإجراء" : "Container action completed");
               renderModule("containers");
@@ -541,7 +565,7 @@ async function renderModule(page) {
         actions.append(moduleActionButton(labels[command], async () => {
           output.textContent = isArabic ? "جاري التنفيذ..." : "Running diagnostic...";
           try {
-            const data = await postJson("http://127.0.0.1:8000/api/v1/terminal/run", {command}, 12000);
+            const data = await postJson(API_BASE + "/api/v1/terminal/run", {command}, 12000);
             output.textContent = data.output || (isArabic ? "لا يوجد ناتج." : "No output.");
           } catch (error) { output.textContent = error.message || t("apiUnavailable"); }
         }));
@@ -551,7 +575,7 @@ async function renderModule(page) {
     }
 
     if (page === "recovery") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/recovery/check", {
+      const data = await fetchJson(API_BASE + "/api/v1/recovery/check", {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -576,7 +600,7 @@ async function renderModule(page) {
         const button = event.currentTarget;
         button.disabled = true;
         try {
-          const result = await postJson("http://127.0.0.1:8000/api/v1/recovery/run", {}, 70000);
+          const result = await postJson(API_BASE + "/api/v1/recovery/run", {}, 70000);
           moduleNotice(result.output || (isArabic ? "اكتملت الاستعادة." : "Recovery completed."));
           toast(isArabic ? "اكتملت الاستعادة" : "Recovery completed");
         } catch (error) {
@@ -587,7 +611,7 @@ async function renderModule(page) {
     }
 
     if (page === "settings") {
-      const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+      const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
         cache: "no-store", signal: AbortSignal.timeout(8000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -610,7 +634,7 @@ async function renderModule(page) {
     const endpoints = { storage: "storage", processes: "processes", network: "network" };
     const endpoint = endpoints[page];
     if (!endpoint) { moduleNotice(t("noData")); return; }
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/" + endpoint, {
+    const data = await fetchJson(API_BASE + "/api/v1/" + endpoint, {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     if (requestId !== moduleRequestId || currentPage !== page) return;
@@ -666,7 +690,7 @@ async function checkAIStatus() {
   const setup = byId("aiSetup");
   if (!status || !setup) return;
   try {
-    const data = await fetchJson("http://127.0.0.1:8000/api/v1/ai/status", {
+    const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     aiConfigured = data.configured === true;
@@ -712,8 +736,9 @@ async function sendAI() {
   messages.append(waiting);
 
   try {
-    const response = await fetch("http://127.0.0.1:8000/api/v1/ai/chat", {
+    const response = await fetch(API_BASE + "/api/v1/ai/chat", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: requestMessages,
@@ -722,6 +747,7 @@ async function sendAI() {
       signal: AbortSignal.timeout(40000)
     });
     const data = await response.json();
+    if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
     if (!response.ok) throw new Error(data.detail || "AI request failed");
     if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("AI returned an empty response");
     waiting.remove();
@@ -739,6 +765,46 @@ async function sendAI() {
     send.textContent = t("aiSend");
     input.focus();
   }
+}
+
+const logout = byId("logoutBtn");
+if (logout && IS_LOCAL_HOST) logout.hidden = true;
+if (logout && !IS_LOCAL_HOST) logout.addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
+  } finally {
+    showAuthGate(lang === "ar" ? "تم تسجيل الخروج." : "You have been signed out.");
+  }
+});
+
+if (!IS_LOCAL_HOST) {
+  const authForm = byId("authForm");
+  if (authForm) authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = byId("authSubmit");
+    const password = byId("authPassword");
+    const error = byId("authError");
+    if (button) button.disabled = true;
+    if (error) error.textContent = "";
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password ? password.value : "" }),
+        cache: "no-store"
+      });
+      const data = await response.json();
+      if (!response.ok || data.authenticated !== true) throw new Error(data.detail || "Login failed");
+      hideAuthGate();
+      loadMetrics(false);
+      loadOverviewPanels();
+    } catch (error) {
+      showAuthGate(error.message || (lang === "ar" ? "تعذر تسجيل الدخول." : "Sign-in failed."));
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
 }
 
 byId("langBtn").addEventListener("click", () => {

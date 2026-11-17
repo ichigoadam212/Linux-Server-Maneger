@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export LINUXCORE_ROOT="$ROOT"
+source "$ROOT/scripts/lib/api-auth.sh"
 API="http://127.0.0.1:8000/api/v1"
 WEB="http://127.0.0.1:8080"
 
@@ -17,7 +20,7 @@ check_json() {
   local label="$3"
   local timeout="${4:-5}"
   local body
-  if ! body="$(curl --fail --silent --show-error --max-time "$timeout" "$url")"; then
+  if ! body="$(linuxcore_curl --fail --silent --show-error --max-time "$timeout" "$url")"; then
     echo "FAIL: $label endpoint is unavailable: $url" >&2
     exit 1
   fi
@@ -45,7 +48,7 @@ check_json "$API/containers" 'import json,sys; d=json.load(sys.stdin); assert is
 check_json "$API/terminal/commands" 'import json,sys; d=json.load(sys.stdin); ids={x["id"] for x in d["commands"]}; assert ids <= {"pwd","system","storage","memory","uptime","processes"}' "allowlisted diagnostic commands"
 check_json "$API/ai/status" 'import json,sys; d=json.load(sys.stdin); assert d.get("mode") == "advisory-only" and isinstance(d.get("configured"), bool)' "AI privacy status"
 
-recovery="$(curl --fail --silent --show-error --max-time 10 "$API/recovery/check")"
+recovery="$(linuxcore_curl --fail --silent --show-error --max-time 10 "$API/recovery/check")"
 if ! printf '%s' "$recovery" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("healthy") is True and all(x.get("present") for x in d.get("files", [])) and d.get("dependencies") is True'; then
   echo "FAIL: recovery preflight reports missing files or dependencies." >&2
   exit 1

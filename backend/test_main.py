@@ -64,6 +64,70 @@ def test_health_endpoint():
     assert "timestamp" in payload
 
 
+def test_remote_api_is_disabled_without_access_token(monkeypatch):
+    monkeypatch.delenv("LINUXCORE_ACCESS_TOKEN", raising=False)
+    remote_client = TestClient(app, client=("203.0.113.10", 54321))
+
+    response = remote_client.get("/api/v1/health", headers={
+        "X-Forwarded-For": "127.0.0.1",
+    })
+
+    assert response.status_code == 503
+    assert "Remote API access is disabled" in response.json()["detail"]
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_remote_api_requires_valid_bearer_token(monkeypatch):
+    token = "linuxcore-test-token-" + ("x" * 40)
+    monkeypatch.setenv("LINUXCORE_ACCESS_TOKEN", token)
+    remote_client = TestClient(app, client=("203.0.113.10", 54321))
+
+    missing = remote_client.get("/api/v1/health")
+    invalid = remote_client.get("/api/v1/health", headers={
+        "Authorization": "Bearer incorrect-token",
+    })
+    valid = remote_client.get("/api/v1/health", headers={
+        "Authorization": f"Bearer {token}",
+    })
+
+    assert missing.status_code == 401
+    assert missing.headers["www-authenticate"] == "Bearer"
+    assert invalid.status_code == 401
+    assert valid.status_code == 200
+    assert valid.json()["service"] == "linuxcore-api"
+
+
+def test_remote_api_rejects_weak_configured_token(monkeypatch):
+    monkeypatch.setenv("LINUXCORE_ACCESS_TOKEN", "too-short")
+    remote_client = TestClient(app, client=("203.0.113.10", 54321))
+
+    response = remote_client.get("/api/v1/metrics")
+
+    assert response.status_code == 503
+    assert "strong LINUXCORE_ACCESS_TOKEN" in response.json()["detail"]
+
+
+def test_loopback_api_remains_available_without_remote_token(monkeypatch):
+    monkeypatch.delenv("LINUXCORE_ACCESS_TOKEN", raising=False)
+
+    response = client.get("/api/v1/health")
+
+    assert response.status_code == 200
+
+
+def test_configured_token_is_required_even_for_loopback_proxy_requests(monkeypatch):
+    token = "linuxcore-test-token-" + ("y" * 40)
+    monkeypatch.setenv("LINUXCORE_ACCESS_TOKEN", token)
+
+    missing = client.get("/api/v1/health")
+    valid = client.get("/api/v1/health", headers={
+        "Authorization": f"Bearer {token}",
+    })
+
+    assert missing.status_code == 401
+    assert valid.status_code == 200
+
+
 def test_api_responses_disable_caching():
     response = client.get("/api/v1/health")
     assert response.status_code == 200

@@ -18,6 +18,23 @@ else
   fail "Expected loopback-only API and dashboard bindings"
 fi
 
+if grep -Fq 'Refusing to install a user service as root' "$ROOT/scripts/install-user-service.sh" &&
+   grep -Fq 'Refusing to overwrite an existing' "$ROOT/scripts/install-user-service.sh" &&
+   grep -Fq 'systemd could not enable/start LinuxCore' "$ROOT/scripts/install-user-service.sh"; then
+  ok "User-service installer refuses root/overwrite and rolls back failed installation"
+else
+  fail "User-service installer safety guards are missing"
+fi
+
+if [[ -f "$ROOT/scripts/linuxcore-supervisor.sh" &&
+      -f "$ROOT/scripts/install-user-service.sh" ]] &&
+   grep -Fq 'systemctl --user' "$ROOT/scripts/install-user-service.sh" &&
+   ! grep -Eq 'sudo|0\.0\.0\.0' "$ROOT/scripts/linuxcore-supervisor.sh" "$ROOT/scripts/install-user-service.sh"; then
+  ok "Optional user service is unprivileged and does not add public bindings"
+else
+  fail "Supervisor/service installer is missing or exceeds user-level scope"
+fi
+
 if grep -Eq 'shell[[:space:]]*=[[:space:]]*True' "$ROOT/backend/main.py"; then
   fail "Shell execution is enabled in backend/main.py"
 else
@@ -31,7 +48,7 @@ else
 fi
 
 if grep -Fq 'http-equiv="Content-Security-Policy"' "$ROOT/frontend/index.html" &&
-   grep -Fq "connect-src http://127.0.0.1:8000" "$ROOT/frontend/index.html" &&
+   grep -Fq "connect-src 'self'" "$ROOT/frontend/index.html" &&
    grep -Fq "object-src 'none'" "$ROOT/frontend/index.html"; then
   ok "Dashboard Content Security Policy restricts scripts and API connections"
 else
@@ -42,6 +59,33 @@ if grep -Eq '<script[^>]+src="https?://' "$ROOT/frontend/index.html"; then
   fail "Remote script source detected in dashboard HTML"
 else
   ok "Dashboard does not load remote scripts"
+fi
+
+if [[ -f "$ROOT/scripts/local-web.py" ]] &&
+   grep -Fq 'ThreadingHTTPServer((args.bind, args.port)' "$ROOT/scripts/local-web.py" &&
+   grep -Fq 'API_ORIGIN = "http://127.0.0.1:8000"' "$ROOT/scripts/local-web.py" &&
+   grep -Fq 'def load_access_token' "$ROOT/scripts/local-web.py"; then
+  ok "Local dashboard proxy binds to loopback and keeps API credentials server-side"
+else
+  fail "Local dashboard proxy security boundary is missing or incomplete"
+fi
+
+if [[ -f "$ROOT/api/_lib/gateway.js" && -f "$ROOT/api/[...path].js" ]] &&
+   grep -Fq 'HttpOnly; Secure; SameSite=Strict' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'safeUpstream' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'lookupImpl(upstream.hostname' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'isPublicAddress(entry.address)' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'function requestPinned' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'servername: hostname' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'lookup: pinnedLookup' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'function readBoundedBody' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'MAX_RESPONSE_BYTES' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'LOGIN_MAX_CLIENTS = 2048' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'API_RULES' "$ROOT/api/_lib/gateway.js" &&
+   grep -Fq 'SLEEP_PID=' "$ROOT/scripts/linuxcore-supervisor.sh"; then
+  ok "Vercel gateway uses secure sessions, HTTPS upstream validation and allowlisted routes"
+else
+  fail "Vercel gateway security boundary is missing or incomplete"
 fi
 
 if grep -Fq 'DEEPSEEK_API_KEY=' "$ROOT/frontend"/*.js "$ROOT/frontend"/*.html 2>/dev/null; then
