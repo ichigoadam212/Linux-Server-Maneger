@@ -187,6 +187,36 @@ test("proxy forwards allowlisted JSON POST bodies with the server-side token", a
   assert.equal(transport.captured.body.toString(), payload);
 });
 
+test("managed LinuxCore inventory and action routes are allowlisted", async () => {
+  const transport = makeTransport({ body: '{"available":true,"items":[]}' });
+  const handler = createGatewayHandler({
+    env: ENV,
+    now: () => NOW,
+    lookupImpl: async () => [{ address: "93.184.216.34", family: 4 }],
+    requestImpl: transport.requestImpl
+  });
+  const login = await invoke(handler, request("/api/auth/login", "POST", {
+    body: { password: ENV.LINUXCORE_LOGIN_PASSWORD }
+  }));
+  const cookie = login.headers["set-cookie"].split(";")[0];
+
+  const inventory = await invoke(handler, request("/api/v1/managed-services", "GET", {
+    headers: { cookie }
+  }));
+  assert.equal(inventory.status, 200);
+  assert.equal(transport.captured.url, "https://linuxcore.example.net/api/v1/managed-services");
+
+  const payload = JSON.stringify({ action: "restart" });
+  const action = await invoke(handler, request("/api/v1/managed-services/action", "POST", {
+    headers: { cookie, "content-type": "application/json" },
+    body: payload
+  }));
+  assert.equal(action.status, 200);
+  assert.equal(transport.captured.url, "https://linuxcore.example.net/api/v1/managed-services/action");
+  assert.equal(transport.captured.options.method, "POST");
+  assert.equal(transport.captured.body.toString(), payload);
+});
+
 test("proxy rejects unlisted endpoints, wrong methods, and oversized bodies", async () => {
   const handler = createGatewayHandler({ env: ENV, now: () => NOW });
   const login = await invoke(handler, request("/api/auth/login", "POST", {

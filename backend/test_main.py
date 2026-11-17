@@ -321,6 +321,123 @@ def test_safe_network_counter_handles_permission_error(monkeypatch):
     assert main.safe_net_io_counters() is None
 
 
+
+def test_managed_services_inventory_reports_missing_pid_files_as_stopped(tmp_path, monkeypatch):
+    monkeypatch.setattr(main.Path, "resolve", lambda self: tmp_path / "backend" / "main.py")
+    (tmp_path / "backend").mkdir()
+    (tmp_path / ".runtime").mkdir()
+    payload = main.managed_services_inventory()
+    assert payload["available"] is True
+    assert {item["name"]: item["state"] for item in payload["items"]} == {
+        "linuxcore-api": "stopped", "linuxcore-dashboard": "stopped"
+    }
+    assert all(item["scope"] == "linuxcore" and item["controllable"] for item in payload["items"])
+
+
+def test_managed_services_inventory_verifies_pid_command_and_checkout(monkeypatch, tmp_path):
+    root = tmp_path
+    backend = root / "backend"
+    backend.mkdir()
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("123")
+    (runtime / "web.pid").write_text("456")
+
+    class FakeProcess:
+        def __init__(self, pid):
+            self.pid = pid
+        def cmdline(self):
+            if self.pid == 123:
+                return [str(root / "backend/.venv/bin/python"),
+                        str(root / "backend/.venv/bin/uvicorn"), "main:app",
+                        "--host", "127.0.0.1", "--port", "8000"]
+            return [str(root / "backend/.venv/bin/python"),
+                    str(root / "scripts/local-web.py"), "--directory", str(root / "frontend"),
+                    "--bind", "127.0.0.1", "--port", "8080"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert [item["state"] for item in payload["items"]] == ["running", "running"]
+    assert [item["pid"] for item in payload["items"]] == [123, 456]
+
+
+def test_managed_services_inventory_rejects_unrelated_pid(monkeypatch, tmp_path):
+    root = tmp_path
+    backend = root / "backend"
+    backend.mkdir()
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("123")
+
+    class FakeProcess:
+        def __init__(self, pid): pass
+        def cmdline(self): return ["/usr/bin/sshd"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert payload["items"][0]["state"] == "identity_mismatch"
+    assert payload["items"][0]["pid"] is None
+
+def test_managed_services_inventory_rejects_prefix_related_checkout(monkeypatch, tmp_path):
+    root = tmp_path / "linuxcore"
+    foreign_root = tmp_path / "linuxcore-old"
+    backend = root / "backend"
+    backend.mkdir(parents=True)
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("789")
+
+    class FakeProcess:
+        def __init__(self, pid): pass
+        def cmdline(self):
+            return [str(root / "backend/.venv/bin/python"),
+                    str(foreign_root / "backend/.venv/bin/uvicorn"), "main:app",
+                    "--host", "127.0.0.1", "--port", "8000"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert payload["items"][0]["state"] == "identity_mismatch"
+    assert payload["items"][0]["pid"] is None
+
+
+def test_managed_services_inventory_rejects_expected_path_in_argument_tail(monkeypatch, tmp_path):
+    root = tmp_path
+    backend = root / "backend"
+    backend.mkdir()
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("987")
+
+    class FakeProcess:
+        def __init__(self, pid): pass
+        def cmdline(self):
+            return [str(root / "backend/.venv/bin/python"), "unrelated.py",
+                    str(root / "backend/.venv/bin/uvicorn"), "main:app"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert payload["items"][0]["state"] == "identity_mismatch"
+    assert payload["items"][0]["pid"] is None
+
+
+def test_managed_services_action_is_detached_and_limited_to_allowlisted_action(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main.subprocess, "Popen", lambda argv, **kwargs: calls.append((argv, kwargs)))
+    result = main.managed_services_action(main.ManagedServiceAction(action="restart"))
+    assert result["ok"] is True
+    assert result["scheduled"] is True
+    assert result["scope"] == "linuxcore-only"
+    assert calls[0][0][0] == "bash"
+    assert calls[0][0][-1] == "restart"
+    assert calls[0][1]["start_new_session"] is True
+    assert calls[0][1]["stdin"] == main.subprocess.DEVNULL
+    assert calls[0][1]["stdout"] == main.subprocess.DEVNULL
+
+
 def test_services_report_unavailable_without_user_manager(monkeypatch):
     monkeypatch.setattr(main, "user_systemctl", lambda: None)
     response = client.get("/api/v1/services")

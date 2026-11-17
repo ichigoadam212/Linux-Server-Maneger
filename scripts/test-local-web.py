@@ -136,5 +136,23 @@ class LocalProxyTests(unittest.TestCase):
         self.assertTrue(any(isinstance(handler, MODULE.NoRedirect) for handler in MODULE.OPENER.handlers))
 
 
+    def test_managed_service_routes_are_allowlisted_for_inventory_and_actions(self):
+        fake = FakeOpener()
+        action_body = b'{"action":"restart"}'
+        with patch.object(MODULE, "OPENER", fake):
+            inventory = MODULE.forward_api_request(
+                "GET", "/api/v1/managed-services", b"", "", TOKEN
+            )
+            action = MODULE.forward_api_request(
+                "POST", "/api/v1/managed-services/action", action_body,
+                "application/json", TOKEN
+            )
+        self.assertEqual(inventory[0], 200)
+        self.assertEqual(fake.request.full_url, "http://127.0.0.1:8000/api/v1/managed-services/action")
+        self.assertEqual(action[0], 200)
+        self.assertEqual(fake.request.data, action_body)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

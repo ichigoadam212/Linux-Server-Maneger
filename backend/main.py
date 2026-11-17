@@ -166,11 +166,25 @@ def user_systemctl():
     return path
 
 
+def systemd_user_unavailable_reason():
+    if not shutil.which("systemctl"):
+        return "systemctl is not installed in this Linux user-space."
+    if os.geteuid() == 0:
+        return "The backend is running as root; this application intentionally manages only unprivileged systemd user units."
+    runtime_dir = os.getenv("XDG_RUNTIME_DIR", "").strip()
+    bus_address = os.getenv("DBUS_SESSION_BUS_ADDRESS", "").strip()
+    if not runtime_dir or not bus_address:
+        return "No systemd user session bus is configured (XDG_RUNTIME_DIR / DBUS_SESSION_BUS_ADDRESS). This is common in PRoot/Andronix."
+    probe = run_fixed_command([shutil.which("systemctl"), "--user", "is-system-running"], timeout=4)
+    detail = (probe["stderr"] or probe["stdout"]).strip()
+    return detail[:500] if detail else "The systemd user manager did not respond."
+
+
 def list_user_services():
     systemctl = user_systemctl()
     if not systemctl:
         return {"available": False, "manager": "systemd --user", "items": [],
-                "reason": "A usable unprivileged systemd user manager is not available."}
+                "reason": systemd_user_unavailable_reason()}
     result = run_fixed_command(
         [systemctl, "--user", "list-units", "--type=service", "--all",
          "--no-legend", "--no-pager"], timeout=8
@@ -242,6 +256,70 @@ def list_rootless_containers():
                 "reason": result["stderr"] or "Container inventory failed."}
     return {"available": True, "runtime": name, "items": items}
 
+
+
+class ManagedServiceAction(BaseModel):
+    action: Literal["start", "stop", "restart"]
+
+
+def command_matches_checkout_prefix(command_parts: list[str], expected_prefixes: list[list[str]]) -> bool:
+    """Match the exact argv prefix used by start.sh; never accept a path found later as data."""
+    for expected_prefix in expected_prefixes:
+        if len(command_parts) < len(expected_prefix):
+            continue
+        matches = True
+        for actual, expected in zip(command_parts, expected_prefix):
+            if os.path.isabs(expected):
+                if not isinstance(actual, str) or not os.path.isabs(actual):
+                    matches = False
+                    break
+                if os.path.realpath(actual) != os.path.realpath(expected):
+                    matches = False
+                    break
+            elif actual != expected:
+                matches = False
+                break
+        if matches:
+            return True
+    return False
+
+
+def managed_services_inventory():
+    """Inspect only PID files owned by this checkout and verify process identity."""
+    root = Path(__file__).resolve().parent.parent
+    runtime = root / ".runtime"
+    python = root / "backend/.venv/bin/python"
+    uvicorn = root / "backend/.venv/bin/uvicorn"
+    dashboard = root / "scripts/local-web.py"
+    frontend = root / "frontend"
+    definitions = [
+        ("linuxcore-api", runtime / "api.pid", [
+            [str(python), str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+            [str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+        ]),
+        ("linuxcore-dashboard", runtime / "web.pid", [[
+            str(python), str(dashboard), "--directory", str(frontend),
+            "--bind", "127.0.0.1", "--port", "8080",
+        ]]),
+    ]
+    items = []
+    for name, pid_file, expected_prefixes in definitions:
+        pid = None
+        state = "stopped"
+        if pid_file.is_file():
+            try:
+                candidate = int(pid_file.read_text(encoding="utf-8").strip())
+                process = psutil.Process(candidate)
+                command_parts = process.cmdline()
+                if command_matches_checkout_prefix(command_parts, expected_prefixes):
+                    pid, state = candidate, "running"
+                else:
+                    state = "identity_mismatch"
+            except (ValueError, OSError, psutil.Error):
+                state = "stale"
+        items.append({"name": name, "pid": pid, "state": state, "scope": "linuxcore", "controllable": True})
+    return {"available": True, "manager": "LinuxCore PID-verified process manager", "items": items,
+            "note": "Only processes verified against this checkout's own PID files are managed."}
 
 
 class ChatMessage(BaseModel):
@@ -325,7 +403,7 @@ def diagnostics():
             "user_services": {
                 "available": systemctl is not None,
                 "manager": "systemd --user",
-                "reason": None if systemctl else "A usable unprivileged systemd user manager is not available.",
+                "reason": None if systemctl else systemd_user_unavailable_reason(),
             },
             "containers": {
                 "available": runtime is not None,
@@ -412,6 +490,30 @@ def network():
 @app.get("/api/v1/services")
 def services():
     return list_user_services()
+
+
+@app.get("/api/v1/managed-services")
+def managed_services():
+    return managed_services_inventory()
+
+
+@app.post("/api/v1/managed-services/action")
+def managed_services_action(request: ManagedServiceAction):
+    root = Path(__file__).resolve().parent.parent
+    runner = root / "scripts" / "managed-service-action.sh"
+    if not runner.is_file():
+        raise HTTPException(status_code=503, detail="LinuxCore lifecycle action runner is missing.")
+    try:
+        # Detach before stopping the API itself; otherwise the request would kill its own worker.
+        subprocess.Popen(
+            ["bash", str(runner), request.action],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True, close_fds=True,
+        )
+    except OSError:
+        raise HTTPException(status_code=503, detail="Could not schedule the LinuxCore lifecycle action.")
+    return {"ok": True, "scheduled": True, "action": request.action,
+            "scope": "linuxcore-only", "note": "The action runs independently after this response."}
 
 
 @app.post("/api/v1/services/{unit}/action")
