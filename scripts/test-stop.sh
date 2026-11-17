@@ -13,7 +13,7 @@ pid="$2"
 if [[ "$pid" == "${FAKE_WEB_PID:-}" ]]; then
   echo "${FAKE_ROOT}/backend/.venv/bin/python ${FAKE_ROOT}/scripts/local-web.py --directory ${FAKE_ROOT}/frontend --bind 127.0.0.1 --port 8080"
 elif [[ "$pid" == "${FAKE_API_PID:-}" ]]; then
-  echo "${FAKE_ROOT}/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
+  echo "${FAKE_ROOT}/backend/.venv/bin/python ${FAKE_ROOT}/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
 elif [[ "$pid" == "${FAKE_FOREIGN_MATCH_PID:-}" ]]; then
   echo "${FAKE_ROOT}-old/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
 else
