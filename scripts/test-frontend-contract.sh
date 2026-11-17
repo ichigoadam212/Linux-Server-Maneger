@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HTML="$ROOT/frontend/index.html"
 JS="$ROOT/frontend/app.js"
+README="$ROOT/README.md"
 require_text() { grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_absent() { ! grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_text "$HTML" 'id="overviewServices"' "overview service panel is missing"
@@ -22,6 +23,12 @@ require_text "$JS" 'response.clone().json()' "API error responses are not parsed
 require_text "$JS" 'payload.detail' "API detail messages are not surfaced"
 require_text "$JS" 'managedResult.reason?.message' "managed-service API error detail is discarded"
 require_text "$JS" 'systemdResult.reason?.message' "systemd API error detail is discarded"
+require_text "$JS" 'aiPrivacy:"Chat messages are sent to DeepSeek;' "English DeepSeek privacy disclosure is missing"
+require_text "$JS" 'aiPrivacy:"تُرسل رسائل المحادثة إلى DeepSeek؛' "Arabic DeepSeek privacy disclosure is missing"
+require_text "$HTML" 'Chat messages are sent to DeepSeek;' "initial HTML privacy disclosure is missing"
+require_text "$README" 'Chat messages are sent to DeepSeek for processing' "README does not disclose the external AI provider"
+require_text "$README" 'LinuxCore API/dashboard lifecycle actions are separate' "README service-scope description is outdated"
+require_text "$HTML" 'app.js?v=0.7.4' "frontend cache version was not bumped for privacy copy"
 render_module_line="$(grep -n -F 'async function renderModule(page)' "$JS" | head -n 1 | cut -d: -f1)"
 [[ -n "$render_module_line" ]] || { echo "FAIL: module renderer is missing" >&2; exit 1; }
 render_module_guard_line=$((render_module_line + 2))
