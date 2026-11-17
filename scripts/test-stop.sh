@@ -11,15 +11,18 @@ cat > "$TEST_ROOT/bin/ps" <<'PS'
 #!/usr/bin/env bash
 pid="$2"
 if [[ "$pid" == "${FAKE_WEB_PID:-}" ]]; then
-  echo "python3 /repo/scripts/local-web.py --directory /repo/frontend --bind 127.0.0.1 --port 8080"
+  echo "${FAKE_ROOT}/.venv/bin/python ${FAKE_ROOT}/scripts/local-web.py --directory ${FAKE_ROOT}/frontend --bind 127.0.0.1 --port 8080"
 elif [[ "$pid" == "${FAKE_API_PID:-}" ]]; then
-  echo "uvicorn main:app --host 127.0.0.1 --port 8000"
+  echo "${FAKE_ROOT}/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
+elif [[ "$pid" == "${FAKE_FOREIGN_MATCH_PID:-}" ]]; then
+  echo "/other/checkout/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000"
 else
   echo "unrelated process"
 fi
 PS
 chmod +x "$TEST_ROOT/bin/ps"
 export PATH="$TEST_ROOT/bin:$PATH"
+export FAKE_ROOT="$TEST_ROOT/repo"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 start_detached_sleep() { bash -c 'sleep 30 >/dev/null 2>&1 & echo $! > "$1"' _ "$1"; }
@@ -51,6 +54,20 @@ kill -0 "$FOREIGN_PID" 2>/dev/null || fail "mismatched process was terminated"
 kill "$FOREIGN_PID" 2>/dev/null || true
 wait "$FOREIGN_PID" 2>/dev/null || true
 unset FOREIGN_PID
+
+# A reused PID running the same entry point from a different checkout is never signalled.
+start_detached_sleep "$TEST_ROOT/foreign-match.pid"
+FOREIGN_PID="$(cat "$TEST_ROOT/foreign-match.pid")"
+export FAKE_FOREIGN_MATCH_PID="$FOREIGN_PID"
+printf '%s\n' "$FOREIGN_PID" > "$TEST_ROOT/repo/.runtime/api.pid"
+if bash "$TEST_ROOT/repo/scripts/stop.sh" > "$TEST_ROOT/foreign-checkout.log" 2>&1; then
+  fail "same command from a different checkout was reported as stopped"
+fi
+kill -0 "$FOREIGN_PID" 2>/dev/null || fail "different-checkout process was terminated"
+[[ -f "$TEST_ROOT/repo/.runtime/api.pid" ]] || fail "different-checkout PID file was removed"
+kill "$FOREIGN_PID" 2>/dev/null || true
+wait "$FOREIGN_PID" 2>/dev/null || true
+unset FOREIGN_PID FAKE_FOREIGN_MATCH_PID
 
 # Invalid and stale PID files are safely cleaned without signalling a process.
 printf 'not-a-pid\n' > "$TEST_ROOT/repo/.runtime/web.pid"
