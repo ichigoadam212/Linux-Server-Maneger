@@ -348,8 +348,12 @@ def test_managed_services_inventory_verifies_pid_command_and_checkout(monkeypatc
             self.pid = pid
         def cmdline(self):
             if self.pid == 123:
-                return [str(root / "backend/.venv/bin/uvicorn"), "main:app"]
-            return ["/usr/bin/python3", str(root / "scripts/local-web.py"), "--directory", str(root / "frontend")]
+                return [str(root / "backend/.venv/bin/python"),
+                        str(root / "backend/.venv/bin/uvicorn"), "main:app",
+                        "--host", "127.0.0.1", "--port", "8000"]
+            return [str(root / "backend/.venv/bin/python"),
+                    str(root / "scripts/local-web.py"), "--directory", str(root / "frontend"),
+                    "--bind", "127.0.0.1", "--port", "8080"]
 
     monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
     monkeypatch.setattr(main.psutil, "Process", FakeProcess)
@@ -388,7 +392,30 @@ def test_managed_services_inventory_rejects_prefix_related_checkout(monkeypatch,
     class FakeProcess:
         def __init__(self, pid): pass
         def cmdline(self):
-            return [str(foreign_root / "backend/.venv/bin/uvicorn"), "main:app"]
+            return [str(root / "backend/.venv/bin/python"),
+                    str(foreign_root / "backend/.venv/bin/uvicorn"), "main:app",
+                    "--host", "127.0.0.1", "--port", "8000"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert payload["items"][0]["state"] == "identity_mismatch"
+    assert payload["items"][0]["pid"] is None
+
+
+def test_managed_services_inventory_rejects_expected_path_in_argument_tail(monkeypatch, tmp_path):
+    root = tmp_path
+    backend = root / "backend"
+    backend.mkdir()
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("987")
+
+    class FakeProcess:
+        def __init__(self, pid): pass
+        def cmdline(self):
+            return [str(root / "backend/.venv/bin/python"), "unrelated.py",
+                    str(root / "backend/.venv/bin/uvicorn"), "main:app"]
 
     monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
     monkeypatch.setattr(main.psutil, "Process", FakeProcess)
