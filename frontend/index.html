@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#080d18"><meta name="description" content="Local-first Linux server monitoring dashboard with Arabic and English interface."><title>LinuxCore | Server Manager</title>
+  <meta name="theme-color" content="#080d18"><meta name="description" content="Local-first Linux server monitoring dashboard with Arabic and English interface."><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:8000; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'"><title>LinuxCore | Server Manager</title>
   <!-- System font stacks keep the dashboard usable offline without third-party font requests. -->
   <link rel="stylesheet" href="styles.css?v=0.7.0">
 </head>
@@ -36,7 +36,7 @@
         <article class="metric-card"><div class="metric-top"><span data-i18n="cpuUsage">CPU USAGE</span><span class="metric-icon">⌁</span></div><div class="metric-value"><strong id="cpuVal">—</strong><small>%</small></div><div class="meter"><i id="cpuBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="processorLoad">Logical cores</span><b id="cpuMeta">—</b></div></article>
         <article class="metric-card"><div class="metric-top"><span data-i18n="memory">MEMORY</span><span class="metric-icon">▥</span></div><div class="metric-value"><strong id="ramVal">—</strong><small>%</small></div><div class="meter cyan"><i id="ramBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="memoryUsed">Memory used</span><b id="ramMeta">—</b></div></article>
         <article class="metric-card"><div class="metric-top"><span data-i18n="storage">STORAGE</span><span class="metric-icon">▤</span></div><div class="metric-value"><strong id="diskVal">—</strong><small>%</small></div><div class="meter purple"><i id="diskBar" style="width:0%"></i></div><div class="metric-foot"><span data-i18n="diskUsed">Disk used</span><b id="diskMeta">—</b></div></article>
-        <article class="metric-card"><div class="metric-top"><span data-i18n="network">NETWORK</span><span class="metric-icon">⌁</span></div><div class="network-value"><div><small data-i18n="download">↓ DOWNLOAD</small><b id="downVal">N/A</b></div><div><small data-i18n="upload">↑ UPLOAD</small><b id="upVal">N/A</b></div></div><div class="network-line"><svg viewBox="0 0 300 42" preserveAspectRatio="none"><path d="M0 31 L20 27 40 30 60 12 80 20 100 8 120 18 140 15 160 29 180 13 200 21 220 6 240 17 260 11 280 22 300 9" /></svg></div><div class="metric-foot"><span data-i18n="interface">Interface</span><b id="networkInterface">—</b></div></article>
+        <article class="metric-card"><div class="metric-top"><span data-i18n="network">NETWORK</span><span class="metric-icon">⌁</span></div><div class="network-value"><div><small data-i18n="download">↓ DOWNLOAD</small><b id="downVal">N/A</b></div><div><small data-i18n="upload">↑ UPLOAD</small><b id="upVal">N/A</b></div></div><div class="metric-foot"><span data-i18n="interface">Interface</span><b id="networkInterface">—</b></div></article>
       </section>
       <section class="system-facts" aria-label="Connected host details">
         <article class="fact-card"><span data-i18n="hostName">HOSTNAME</span><strong id="hostName">—</strong></article>
@@ -44,8 +44,8 @@
         <article class="fact-card"><span data-i18n="uptime">UPTIME</span><strong id="hostUptime">—</strong></article>
       </section>
       <section class="content-grid">
-        <article class="panel system-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="systemHealth">SYSTEM HEALTH</div><h2 data-i18n="serviceStatus">Service status</h2></div><a href="#" class="text-link" data-go="services" data-i18n="viewAll">VIEW ALL ↗</a></div><div class="service-list"><div class="module-notice" data-i18n="serviceDiscoveryPending">Service discovery will be enabled after the target Linux init system is identified.</div></div></article>
-        <article class="panel activity-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="monitoring">MONITORING</div><h2 data-i18n="recentActivity">Recent activity</h2></div><span class="activity-count">03 EVENTS</span></div><div class="activity-list"><div class="activity-row"><span class="activity-dot green"></span><div><b data-i18n="backupCompleted">Backup completed</b><small>/var/backups · 2.4 GB</small></div><time>10:42</time></div><div class="activity-row"><span class="activity-dot blue"></span><div><b data-i18n="serviceRestarted">Service restarted</b><small>nginx.service</small></div><time>09:18</time></div><div class="activity-row"><span class="activity-dot amber"></span><div><b data-i18n="securityScan">Security scan finished</b><small data-i18n="noIssues">No issues detected</small></div><time>08:05</time></div></div><div class="activity-footer" data-i18n="demoActivity">Illustrative activity · not live system events</div></article>
+        <article class="panel system-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="systemHealth">SYSTEM HEALTH</div><h2 data-i18n="serviceStatus">Service status</h2></div><a href="#" class="text-link" data-go="services" data-i18n="viewAll">VIEW ALL ↗</a></div><div class="service-list" id="overviewServices" aria-live="polite"><div class="module-notice" data-i18n="loadingOverview">Loading live user services…</div></div></article>
+        <article class="panel activity-panel"><div class="panel-head"><div><div class="panel-kicker" data-i18n="monitoring">RUNTIME</div><h2 data-i18n="environmentCapabilities">Environment capabilities</h2></div><span class="activity-count" data-i18n="liveChecks">LIVE CHECKS</span></div><div class="activity-list" id="overviewCapabilities" aria-live="polite"><div class="module-notice" data-i18n="loadingOverview">Loading live environment checks…</div></div><div class="activity-footer" data-i18n="capabilityFooter">Live capability results; unavailable features are not simulated.</div></article>
       </section>
       <section class="module-workspace" id="moduleWorkspace" hidden>
         <div class="module-head"><div><div class="panel-kicker">LINUXCORE MODULE</div><h2 id="moduleTitle">Module</h2><p id="moduleDescription">Live read-only information from the connected Linux environment.</p></div><button class="outline-btn" id="moduleRefresh" type="button">↻ Refresh</button></div>
@@ -62,5 +62,5 @@
       <footer class="footer"><span>LINUXCORE SERVER MANAGER <b>·</b> v0.7.0</span><span data-i18n="footerNote">Designed for secure, local-first server administration.</span></footer>
     </main>
   </div>
-  <div id="toast" role="status"></div><script src="app.js?v=0.7.0" defer></script>
+  <div id="toast" role="status"></div><script src="app.js?v=0.7.1" defer></script>
 </body></html>

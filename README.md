@@ -19,6 +19,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 ## Implemented
 
 - Responsive cyber dashboard with Arabic/English UI and RTL support.
+- Overview panels load current user-service inventory and real environment capability checks; fabricated activity entries and static network sparkline samples are not presented as live data.
 - Live CPU, memory, disk, host identity, uptime, storage, process and network views.
 - Live environment diagnostics for architecture, Python runtime, privilege level, user-service manager, rootless container runtime, network counters and allowlisted diagnostic tools.
 - Graceful handling when the Linux environment restricts /proc network counters.
@@ -31,7 +32,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
 - AI remains advisory-only and cannot execute commands or modify the host.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
-- Automated backend tests and frontend/shell syntax checks in GitHub Actions.
+- Automated backend tests, startup identity checks, controlled recovery rollback tests, safe shutdown tests, frontend contract checks and shell syntax validation in GitHub Actions.
 
 ## Repository layout
 
@@ -120,6 +121,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 ## Security boundaries
 
 - Localhost-only binding by default.
+- A restrictive dashboard Content Security Policy blocks remote scripts and non-loopback API connections.
 - No arbitrary shell execution and no user-supplied command strings.
 - Service actions are restricted to discovered systemd --user units.
 - Container actions require an accessible rootless runtime and a container present in its current inventory.
@@ -142,13 +144,15 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 ## Validation checklist
 
-- [x] Backend API tests and input-validation tests are part of CI.
-- [x] Frontend JavaScript syntax check is part of CI.
-- [x] All shell scripts, including recovery, are syntax-checked in CI.
-- [ ] Run `bash scripts/smoke-test.sh` on the target phone after pulling the current branch.
-- [ ] Confirm the dashboard in the phone browser.
-- [ ] Verify which user services and rootless container runtime are available on the phone.
-- [ ] Confirm start/stop/recovery behavior after Android backgrounds the Linux app.
+- [x] Backend API and input-validation tests pass in CI.
+- [x] Frontend JavaScript syntax and live-data contract checks pass in CI.
+- [x] Shell syntax, startup API/dashboard identity, recovery rollback and safe shutdown tests pass in CI.
+- [x] CI starts an isolated loopback API/dashboard pair and passes the full non-destructive smoke test.
+- [x] Static security checks pass, including loopback binding, CORS, CSP, tracked-secret and runtime-ignore checks.
+- [ ] **Final device stage:** run `bash scripts/smoke-test.sh` on the target phone after pulling the reviewed branch.
+- [ ] **Final device stage:** confirm the dashboard and Arabic/English layout in the phone browser.
+- [ ] **Final device stage:** record which user services and rootless container runtime are actually available on the phone.
+- [ ] **Final device stage:** verify start/stop/recovery and background/resume behavior on Android.
 
 ## License
 

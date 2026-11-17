@@ -407,6 +407,23 @@ def test_recovery_check_reports_project_files():
 
 
 
+def test_recovery_check_uses_running_python_interpreter(monkeypatch):
+    calls = []
+
+    def fake_run(argv, timeout=8):
+        calls.append((argv, timeout))
+        return {"returncode": 0, "stdout": "", "stderr": ""}
+
+    monkeypatch.setattr(main.sys, "executable", "/opt/linuxcore/bin/python")
+    monkeypatch.setattr(main, "run_fixed_command", fake_run)
+    response = client.get("/api/v1/recovery/check")
+
+    assert response.status_code == 200
+    assert response.json()["dependencies"] is True
+    assert calls == [(["/opt/linuxcore/bin/python", "-c",
+                       "import fastapi, uvicorn, psutil, dotenv"], 8)]
+
+
 def test_recovery_run_executes_only_project_recovery_script(monkeypatch):
     calls = []
 

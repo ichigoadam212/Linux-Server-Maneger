@@ -27,6 +27,10 @@ bash scripts/stop.sh
 
 The Security page reads `GET /api/v1/diagnostics` to show live capability checks for the current user-space: process privilege level, architecture, Python version, systemd user-manager availability, rootless container runtime, network counters, and the fixed diagnostic tools. Optional host capabilities may be unavailable in PRoot; this is reported as unavailable rather than treated as a project failure.
 
+The Security-page diagnostics request allows 30 seconds because capability discovery is sequential and may include bounded systemd, Podman, and Docker probes. A slow optional runtime should not cause the browser to abandon the diagnostics response before those checks finish.
+
+The overview loads the live `systemd --user` inventory and diagnostics capabilities. It does not display fabricated service events or sample network graph data. No event-history API is implemented yet.
+
 Run the local static security checks:
 
 ```bash
@@ -52,6 +56,7 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 ## Security boundaries
 
 - Keep both services bound to `127.0.0.1`; do not change to `0.0.0.0` for convenience.
+- The dashboard Content Security Policy blocks remote scripts, objects, frames, and non-loopback API connections. Inline styles remain allowed for live metric bars.
 - CORS is a browser policy, not authentication. Other local processes may still be able to call a loopback API.
 - API routes return `Cache-Control: no-store` and `Pragma: no-cache` so browsers and compliant intermediaries should not retain host metrics, inventories, or AI responses.
 - Do not expose this development service to Wi-Fi, the public internet, a reverse proxy, or a tunnel.

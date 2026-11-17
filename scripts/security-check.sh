@@ -30,11 +30,39 @@ else
   ok "No wildcard CORS origin detected"
 fi
 
+if grep -Fq 'http-equiv="Content-Security-Policy"' "$ROOT/frontend/index.html" &&
+   grep -Fq "connect-src http://127.0.0.1:8000" "$ROOT/frontend/index.html" &&
+   grep -Fq "object-src 'none'" "$ROOT/frontend/index.html"; then
+  ok "Dashboard Content Security Policy restricts scripts and API connections"
+else
+  fail "Dashboard Content Security Policy is missing or incomplete"
+fi
+
+if grep -Eq '<script[^>]+src="https?://' "$ROOT/frontend/index.html"; then
+  fail "Remote script source detected in dashboard HTML"
+else
+  ok "Dashboard does not load remote scripts"
+fi
+
+if grep -Fq 'DEEPSEEK_API_KEY=' "$ROOT/frontend"/*.js "$ROOT/frontend"/*.html 2>/dev/null; then
+  fail "A DeepSeek API key assignment appears in frontend assets"
+else
+  ok "No DeepSeek API key assignment appears in frontend assets"
+fi
+
+if grep -Fqx '.runtime/' "$ROOT/.gitignore"; then
+  ok "Runtime state and backup directory is ignored by Git"
+else
+  fail "Runtime state and backup directory is not ignored by Git"
+fi
+
 if command -v git >/dev/null 2>&1; then
-  if git -C "$ROOT" ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production)$' >/dev/null; then
-    fail "A populated environment file is tracked by Git"
+  if git -C "$ROOT" ls-files |
+      grep -E '(^|/)\.env($|\.|rc$)' |
+      grep -Ev '\.env\.example$' >/dev/null; then
+    fail "A populated or non-example environment file is tracked by Git"
   else
-    ok "No populated .env file is tracked by Git"
+    ok "No populated environment file is tracked by Git"
   fi
 else
   warn "Git is unavailable; tracked-secret check was skipped"

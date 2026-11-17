@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import time
 import threading
 from typing import Literal
@@ -426,7 +427,7 @@ def recovery_check():
     required = [root / "frontend" / "index.html", root / "frontend" / "app.js",
                 root / "scripts" / "start.sh", root / "scripts" / "recover.sh"]
     files = [{"path": str(path.relative_to(root)), "present": path.is_file()} for path in required]
-    imports = run_fixed_command([str(root / "backend" / ".venv" / "bin" / "python"),
+    imports = run_fixed_command([sys.executable,
                                  "-c", "import fastapi, uvicorn, psutil, dotenv"], timeout=8)
     return {"healthy": all(item["present"] for item in files) and imports["returncode"] == 0,
             "files": files, "dependencies": imports["returncode"] == 0,
