@@ -659,9 +659,10 @@ async def ai_chat(request: AIChatRequest):
             "disk_percent": snapshot["disk_percent"],
             "disk_used_gb": snapshot["disk_used_gb"],
             "disk_total_gb": snapshot["disk_total_gb"],
+            # Mount and device paths can contain account names; never send them to the external AI provider.
             "storage_mounts": [
-                {"mountpoint": item["mountpoint"], "filesystem": item["filesystem"],
-                 "percent": item["percent"], "total_gb": item["total_gb"]}
+                {"filesystem": item["filesystem"], "percent": item["percent"],
+                 "total_gb": item["total_gb"]}
                 for item in storage_snapshot["items"][:12]
             ],
         }
