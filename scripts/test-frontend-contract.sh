@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HTML="$ROOT/frontend/index.html"
 JS="$ROOT/frontend/app.js"
+README="$ROOT/README.md"
 require_text() { grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_absent() { ! grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_text "$HTML" 'id="overviewServices"' "overview service panel is missing"
@@ -14,6 +15,29 @@ require_text "$JS" 'const API_BASE = "";' "dashboard does not use same-origin AP
 require_text "$JS" 'if (!IS_LOCAL_HOST)' "hosted login gate is not restricted to remote dashboard mode"
 require_absent "$JS" 'http://127.0.0.1:8000' "browser JavaScript still addresses the backend directly"
 require_text "$JS" 'async function loadOverviewPanels()' "live overview loader is missing"
+require_text "$JS" 'loadingData:"Loading module data…"' "English module loading state is missing"
+require_text "$JS" 'loadingData:"جاري تحميل بيانات الوحدة…"' "Arabic module loading state is missing"
+require_text "$JS" 'loadingNotice.setAttribute("role", "status")' "module loading state is not announced accessibly"
+require_text "$JS" 'loadingNotice.remove()' "module loading state is not cleared after requests"
+require_text "$JS" 'response.clone().json()' "API error responses are not parsed safely"
+require_text "$JS" 'payload.detail' "API detail messages are not surfaced"
+require_text "$JS" 'managedResult.reason?.message' "managed-service API error detail is discarded"
+require_text "$JS" 'systemdResult.reason?.message' "systemd API error detail is discarded"
+require_text "$JS" 'aiPrivacy:"Chat messages are sent to DeepSeek;' "English DeepSeek privacy disclosure is missing"
+require_text "$JS" 'aiPrivacy:"تُرسل رسائل المحادثة إلى DeepSeek؛' "Arabic DeepSeek privacy disclosure is missing"
+require_text "$HTML" 'Chat messages are sent to DeepSeek;' "initial HTML privacy disclosure is missing"
+require_text "$README" 'Chat messages are sent to DeepSeek for processing' "README does not disclose the external AI provider"
+require_text "$README" 'LinuxCore API/dashboard lifecycle actions are separate' "README service-scope description is outdated"
+require_text "$HTML" 'app.js?v=0.7.4' "frontend cache version was not bumped for privacy copy"
+render_module_line="$(grep -n -F 'async function renderModule(page)' "$JS" | head -n 1 | cut -d: -f1)"
+[[ -n "$render_module_line" ]] || { echo "FAIL: module renderer is missing" >&2; exit 1; }
+render_module_guard_line=$((render_module_line + 2))
+[[ "$(sed -n "${render_module_guard_line}p" "$JS")" == *'if (currentPage !== page) return;'* ]] || {
+  echo "FAIL: stale module renders are not rejected before changing the UI" >&2
+  exit 1
+}
+require_text "$HTML" 'id="moduleContent" class="module-content" aria-live="polite"' "module updates are not announced accessibly"
+require_text "$HTML" 'app.js?v=0.7.4' "frontend cache version was not bumped"
 require_text "$JS" '/api/v1/services' "overview does not query user services"
 require_text "$JS" '/api/v1/diagnostics' "overview does not query live diagnostics"
 require_text "$JS" 'AbortSignal.timeout(30000)' "diagnostics timeout does not cover bounded capability probes"
