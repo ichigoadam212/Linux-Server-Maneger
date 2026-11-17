@@ -25,6 +25,8 @@ API_RULES = [
     (re.compile(r"^/api/v1/(health|metrics|diagnostics|storage|processes|network)$"), "GET"),
     (re.compile(r"^/api/v1/services$"), "GET"),
     (re.compile(r"^/api/v1/services/[A-Za-z0-9_.@:-]+/action$"), "POST"),
+    (re.compile(r"^/api/v1/managed-services$"), "GET"),
+    (re.compile(r"^/api/v1/managed-services/action$"), "POST"),
     (re.compile(r"^/api/v1/containers$"), "GET"),
     (re.compile(r"^/api/v1/containers/[A-Za-z0-9_.-]+/action$"), "POST"),
     (re.compile(r"^/api/v1/terminal/commands$"), "GET"),
