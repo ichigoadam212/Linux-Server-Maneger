@@ -468,19 +468,20 @@ def managed_services():
 @app.post("/api/v1/managed-services/action")
 def managed_services_action(request: ManagedServiceAction):
     root = Path(__file__).resolve().parent.parent
-    script = root / "scripts" / ("start.sh" if request.action == "start" else "stop.sh")
-    if not script.is_file():
-        raise HTTPException(status_code=503, detail="LinuxCore lifecycle script is missing.")
-    if request.action == "restart":
-        stopped = run_fixed_command(["bash", str(root / "scripts" / "stop.sh")], timeout=30)
-        if stopped["returncode"] != 0:
-            raise HTTPException(status_code=502, detail=stopped["stderr"] or stopped["stdout"] or "LinuxCore stop failed.")
-        script = root / "scripts" / "start.sh"
-    result = run_fixed_command(["bash", str(script)], timeout=90)
-    if result["returncode"] != 0:
-        raise HTTPException(status_code=502, detail=result["stderr"] or result["stdout"] or "LinuxCore lifecycle action failed.")
-    return {"ok": True, "action": request.action, "output": result["stdout"][-4000:],
-            "scope": "linuxcore-only"}
+    runner = root / "scripts" / "managed-service-action.sh"
+    if not runner.is_file():
+        raise HTTPException(status_code=503, detail="LinuxCore lifecycle action runner is missing.")
+    try:
+        # Detach before stopping the API itself; otherwise the request would kill its own worker.
+        subprocess.Popen(
+            ["bash", str(runner), request.action],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True, close_fds=True,
+        )
+    except OSError:
+        raise HTTPException(status_code=503, detail="Could not schedule the LinuxCore lifecycle action.")
+    return {"ok": True, "scheduled": True, "action": request.action,
+            "scope": "linuxcore-only", "note": "The action runs independently after this response."}
 
 
 @app.post("/api/v1/services/{unit}/action")
