@@ -512,8 +512,9 @@ async function renderModule(page) {
             button.disabled = true;
             try {
               await postJson(API_BASE + "/api/v1/managed-services/action", {action}, 100000);
-              toast(isArabic ? "اكتمل إجراء LinuxCore" : "LinuxCore action completed");
-              renderModule("services");
+              toast(isArabic ? "تم جدولة إجراء LinuxCore" : "LinuxCore action scheduled");
+              await new Promise((resolve) => setTimeout(resolve, 1800));
+              if (action !== "stop") renderModule("services");
             } catch (error) { toast(error.message || t("apiUnavailable")); }
             finally { button.disabled = false; }
           }));
