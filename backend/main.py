@@ -262,27 +262,48 @@ class ManagedServiceAction(BaseModel):
     action: Literal["start", "stop", "restart"]
 
 
-def command_has_expected_checkout_entry(command_parts: list[str], expected_path: Path) -> bool:
-    """Require the exact checkout-owned executable or script path, not a sibling prefix."""
-    expected = os.path.realpath(str(expected_path))
-    return any(
-        isinstance(argument, str)
-        and os.path.isabs(argument)
-        and os.path.realpath(argument) == expected
-        for argument in command_parts
-    )
+def command_matches_checkout_prefix(command_parts: list[str], expected_prefixes: list[list[str]]) -> bool:
+    """Match the exact argv prefix used by start.sh; never accept a path found later as data."""
+    for expected_prefix in expected_prefixes:
+        if len(command_parts) < len(expected_prefix):
+            continue
+        matches = True
+        for actual, expected in zip(command_parts, expected_prefix):
+            if os.path.isabs(expected):
+                if not isinstance(actual, str) or not os.path.isabs(actual):
+                    matches = False
+                    break
+                if os.path.realpath(actual) != os.path.realpath(expected):
+                    matches = False
+                    break
+            elif actual != expected:
+                matches = False
+                break
+        if matches:
+            return True
+    return False
 
 
 def managed_services_inventory():
     """Inspect only PID files owned by this checkout and verify process identity."""
     root = Path(__file__).resolve().parent.parent
     runtime = root / ".runtime"
+    python = root / "backend/.venv/bin/python"
+    uvicorn = root / "backend/.venv/bin/uvicorn"
+    dashboard = root / "scripts/local-web.py"
+    frontend = root / "frontend"
     definitions = [
-        ("linuxcore-api", runtime / "api.pid", "uvicorn main:app", root / "backend/.venv/bin/uvicorn"),
-        ("linuxcore-dashboard", runtime / "web.pid", "local-web.py --directory", root / "scripts/local-web.py"),
+        ("linuxcore-api", runtime / "api.pid", [
+            [str(python), str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+            [str(uvicorn), "main:app", "--host", "127.0.0.1", "--port", "8000"],
+        ]),
+        ("linuxcore-dashboard", runtime / "web.pid", [[
+            str(python), str(dashboard), "--directory", str(frontend),
+            "--bind", "127.0.0.1", "--port", "8080",
+        ]]),
     ]
     items = []
-    for name, pid_file, expected, expected_path in definitions:
+    for name, pid_file, expected_prefixes in definitions:
         pid = None
         state = "stopped"
         if pid_file.is_file():
@@ -290,8 +311,7 @@ def managed_services_inventory():
                 candidate = int(pid_file.read_text(encoding="utf-8").strip())
                 process = psutil.Process(candidate)
                 command_parts = process.cmdline()
-                command = " ".join(command_parts)
-                if expected in command and command_has_expected_checkout_entry(command_parts, expected_path):
+                if command_matches_checkout_prefix(command_parts, expected_prefixes):
                     pid, state = candidate, "running"
                 else:
                     state = "identity_mismatch"
