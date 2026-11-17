@@ -28,5 +28,5 @@ stop_pid() {
 }
 result=0
 stop_pid "$RUNTIME/web.pid" "Website" "$VENV/bin/python $ROOT/scripts/local-web.py --directory $ROOT/frontend" || result=1
-stop_pid "$RUNTIME/api.pid" "API" "$VENV/bin/uvicorn main:app" || result=1
+stop_pid "$RUNTIME/api.pid" "API" "$VENV/bin/python $VENV/bin/uvicorn main:app" || result=1
 exit "$result"
