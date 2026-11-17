@@ -59,7 +59,7 @@ unset FOREIGN_PID
 start_detached_sleep "$TEST_ROOT/foreign-match.pid"
 FOREIGN_PID="$(cat "$TEST_ROOT/foreign-match.pid")"
 export FAKE_FOREIGN_MATCH_PID="$FOREIGN_PID"
-printf '%s\\n' "$FOREIGN_PID" > "$TEST_ROOT/repo/.runtime/api.pid"
+printf '%s\n' "$FOREIGN_PID" > "$TEST_ROOT/repo/.runtime/api.pid"
 if bash "$TEST_ROOT/repo/scripts/stop.sh" > "$TEST_ROOT/foreign-checkout.log" 2>&1; then
   fail "same command from a different checkout was reported as stopped"
 fi
