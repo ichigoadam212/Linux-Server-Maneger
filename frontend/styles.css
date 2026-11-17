@@ -63,3 +63,45 @@ button,.nav-item,.lang-btn,.outline-btn{touch-action:manipulation}
   .ai-messages{min-height:190px;max-height:290px}
   .ai-chat-head{flex-direction:column}
 }
+
+/* v0.7.3: phone-first refinements merged with current main mobile layout */
+@media (max-width: 760px) {
+  .shell { min-height: 100svh; align-items: stretch; }
+  .sidebar { width: 58px; min-height: 100svh; padding: 14px 6px; }
+  .brand { justify-content: center; padding: 0 0 22px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .nav-item { min-height: 44px; padding: 10px 3px; gap: 0; }
+  .nav-item i { width: auto; font-size: 19px; }
+  .main { width: calc(100% - 58px); min-width: 0; padding: 0 12px; }
+  .topbar { min-width: 0; }
+  .crumb { min-width: 0; gap: 7px; }
+  .crumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-actions { flex-shrink: 0; }
+  .ai-workspace { grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 14px 0 20px; min-height: 0; }
+  .ai-info { order: 1; padding: 13px; }
+  .ai-info h3 { font-size: 11px; }
+  .ai-info p, .ai-check, .ai-setup { font-size: 10px; }
+  .ai-chat { min-height: 420px; min-width: 0; }
+  .ai-chat-head { align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .ai-chat-head > div { min-width: 0; }
+  .ai-chat-head p { line-height: 1.5; }
+  .ai-status { white-space: nowrap; }
+  .ai-messages { min-height: 190px; max-height: 42svh; }
+  .ai-compose { align-items: stretch; }
+  .ai-compose textarea { min-width: 0; width: 100%; }
+  .module-content { min-width: 0; }
+  .module-table { min-width: 460px; }
+  .operation-actions { width: 100%; }
+  .operation-actions .outline-btn, .terminal-actions .outline-btn { min-height: 38px; }
+  #toast { left: 10px; right: 10px; bottom: 12px; text-align: center; }
+  [dir="rtl"] #toast { left: 10px; right: 10px; }
+}
+@media (max-width: 390px) {
+  .sidebar { width: 52px; padding-inline: 4px; }
+  .main { width: calc(100% - 52px); padding-inline: 9px; }
+  .top-actions { gap: 5px; }
+  .lang-btn { padding: 7px 8px; font-size: 10px; }
+  .ai-compose { gap: 6px; padding: 8px; }
+  .ai-send { padding: 0 9px; }
+  .ai-chat { min-height: 390px; }
+}
