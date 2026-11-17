@@ -37,7 +37,7 @@ render_module_guard_line=$((render_module_line + 2))
   exit 1
 }
 require_text "$HTML" 'id="moduleContent" class="module-content" aria-live="polite"' "module updates are not announced accessibly"
-require_text "$HTML" 'app.js?v=0.7.3' "frontend cache version was not bumped"
+require_text "$HTML" 'app.js?v=0.7.4' "frontend cache version was not bumped"
 require_text "$JS" '/api/v1/services' "overview does not query user services"
 require_text "$JS" '/api/v1/diagnostics' "overview does not query live diagnostics"
 require_text "$JS" 'AbortSignal.timeout(30000)' "diagnostics timeout does not cover bounded capability probes"
