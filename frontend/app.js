@@ -23,6 +23,7 @@ const translations = {
     diagnosticCommands:"Diagnostic commands", capabilityFooter:"Live capability results; unavailable features are not simulated.",
     footerNote:"Designed for secure, local-first server administration.", serviceDiscoveryPending:"Service discovery is pending identification of the Linux init system.",
     serviceDescription:"Manage only services owned by your unprivileged systemd user session.",
+    linuxcoreOwned:"LinuxCore managed processes", linuxcoreControlNote:"These controls affect only this LinuxCore checkout. System services are never touched.", systemdUnavailableDetail:"Systemd user services are unavailable here; LinuxCore processes can still be monitored separately.", startAll:"Start LinuxCore", stopAll:"Stop LinuxCore", restartAll:"Restart LinuxCore", running:"Running", stopped:"Stopped", identityMismatch:"PID identity mismatch", stalePid:"Stale PID file",
     containersDescription:"Inspect and control containers only through an accessible rootless Podman or Docker runtime.",
     terminalDisabled:"Run a fixed set of read-only diagnostic commands. Arbitrary shell input is intentionally unavailable.",
     securityDescription:"Current security boundaries for this project.", recoveryDescription:"Check LinuxCore and safely restart only its own local services.", settingsDescription:"Local integration and configuration status.",
@@ -55,6 +56,7 @@ const translations = {
     diagnosticCommands:"أوامر التشخيص", capabilityFooter:"نتائج فحص فعلية؛ لا تتم محاكاة الإمكانيات غير المتاحة.",
     footerNote:"مصممة لإدارة السيرفرات محليًا وبشكل آمن.", serviceDiscoveryPending:"اكتشاف الخدمات مؤجل لحين تحديد مدير التشغيل داخل Linux.",
     serviceDescription:"إدارة خدمات جلسة systemd الخاصة بالمستخدم فقط، من غير صلاحيات Root.",
+    linuxcoreOwned:"عمليات LinuxCore المُدارة", linuxcoreControlNote:"التحكم هنا يخص نسخة LinuxCore دي فقط. خدمات النظام مش بيتم لمسها.", systemdUnavailableDetail:"خدمات systemd للمستخدم غير متاحة هنا؛ تقدر تتابع عمليات LinuxCore بشكل منفصل.", startAll:"تشغيل LinuxCore", stopAll:"إيقاف LinuxCore", restartAll:"إعادة تشغيل LinuxCore", running:"تعمل", stopped:"متوقفة", identityMismatch:"تعذّر التحقق من هوية العملية", stalePid:"ملف PID قديم",
     containersDescription:"عرض وإدارة الحاويات من خلال Podman أو Docker بنمط Rootless فقط.",
     terminalDisabled:"تشغيل مجموعة محددة من أوامر التشخيص للقراءة فقط. تنفيذ أوامر Shell عشوائية غير متاح.",
     securityDescription:"حدود الأمان الحالية للمشروع.", recoveryDescription:"فحص LinuxCore وإعادة تشغيل خدماته المحلية فقط بشكل آمن.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
@@ -482,36 +484,73 @@ async function renderModule(page) {
 
   try {
     if (page === "services") {
-      const data = await fetchJson(API_BASE + "/api/v1/services", {
-        cache: "no-store", signal: AbortSignal.timeout(10000)
-      });
+      const [managedResult, systemdResult] = await Promise.allSettled([
+        fetchJson(API_BASE + "/api/v1/managed-services", {cache:"no-store", signal:AbortSignal.timeout(10000)}),
+        fetchJson(API_BASE + "/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)})
+      ]);
       if (requestId !== moduleRequestId || currentPage !== page) return;
-      if (!data.available) { moduleNotice(data.reason || t("noData")); return; }
-      const items = Array.isArray(data.items) ? data.items : [];
-      moduleNotice((isArabic ? "مدير الخدمات: " : "Service manager: ") + data.manager);
-      if (!items.length) { moduleNotice(t("noData")); return; }
-      items.forEach((item) => {
-        const row = moduleNode("div", "operation-row");
-        const details = moduleNode("div", "operation-details");
-        details.append(moduleNode("b", "", item.unit),
-          moduleNode("small", "", [item.active, item.sub, item.description].filter(Boolean).join(" · ")));
-        const controls = moduleNode("div", "operation-actions");
-        ["start", "stop", "restart"].forEach((action) => {
-          controls.append(moduleActionButton(
-            isArabic ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
-            async () => {
-              try {
-                await postJson(API_BASE + "/api/v1/services/" +
-                  encodeURIComponent(item.unit) + "/action", {action}, 25000);
-                toast(isArabic ? "تم إرسال الإجراء للخدمة" : "Service action completed");
-                renderModule("services");
-              } catch (error) { toast(error.message || t("apiUnavailable")); }
-            }
-          ));
+      if (managedResult.status === "fulfilled" && managedResult.value.available) {
+        const managed = managedResult.value;
+        moduleNotice(t("linuxcoreOwned") + " · " + managed.manager);
+        const items = Array.isArray(managed.items) ? managed.items : [];
+        items.forEach((item) => {
+          const row = moduleNode("div", "operation-row");
+          const details = moduleNode("div", "operation-details");
+          const state = item.state === "running" ? t("running") :
+            item.state === "stopped" ? t("stopped") :
+            item.state === "stale" ? t("stalePid") : t("identityMismatch");
+          details.append(moduleNode("b", "", item.name),
+            moduleNode("small", "", state + (item.pid ? " · PID " + item.pid : "")));
+          row.append(details);
+          content.append(row);
         });
-        row.append(details, controls);
-        content.append(row);
-      });
+        moduleNotice(managed.note || t("linuxcoreControlNote"));
+        const actions = moduleNode("div", "operation-actions");
+        [["start",t("startAll")],["stop",t("stopAll")],["restart",t("restartAll")]].forEach(([action,label]) => {
+          actions.append(moduleActionButton(label, async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+              await postJson(API_BASE + "/api/v1/managed-services/action", {action}, 100000);
+              toast(isArabic ? "اكتمل إجراء LinuxCore" : "LinuxCore action completed");
+              renderModule("services");
+            } catch (error) { toast(error.message || t("apiUnavailable")); }
+            finally { button.disabled = false; }
+          }));
+        });
+        content.append(actions);
+      } else {
+        moduleNotice(managedResult.status === "rejected" ? t("apiUnavailable") : t("noData"));
+      }
+      content.append(moduleNode("div","module-stat"));
+      moduleNotice(isArabic ? "خدمات systemd الخاصة بالمستخدم" : "systemd user services");
+      if (systemdResult.status === "rejected") {
+        moduleNotice(t("apiUnavailable"));
+      } else if (!systemdResult.value.available) {
+        moduleNotice(systemdResult.value.reason || t("systemdUnavailableDetail"));
+      } else {
+        const items = Array.isArray(systemdResult.value.items) ? systemdResult.value.items : [];
+        if (!items.length) moduleNotice(t("noData"));
+        items.forEach((item) => {
+          const row = moduleNode("div", "operation-row");
+          const details = moduleNode("div", "operation-details");
+          details.append(moduleNode("b", "", item.unit),
+            moduleNode("small", "", [item.active, item.sub, item.description].filter(Boolean).join(" · ")));
+          const controls = moduleNode("div", "operation-actions");
+          ["start", "stop", "restart"].forEach((action) => {
+            controls.append(moduleActionButton(isArabic ? ({start:"تشغيل",stop:"إيقاف",restart:"إعادة تشغيل"}[action]) : action,
+              async () => {
+                try {
+                  await postJson(API_BASE + "/api/v1/services/" + encodeURIComponent(item.unit) + "/action", {action}, 25000);
+                  toast(isArabic ? "تم إرسال الإجراء للخدمة" : "Service action completed");
+                  renderModule("services");
+                } catch (error) { toast(error.message || t("apiUnavailable")); }
+              }));
+          });
+          row.append(details, controls);
+          content.append(row);
+        });
+      }
       return;
     }
 
