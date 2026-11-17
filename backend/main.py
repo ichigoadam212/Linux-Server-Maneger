@@ -262,19 +262,15 @@ class ManagedServiceAction(BaseModel):
     action: Literal["start", "stop", "restart"]
 
 
-def command_contains_checkout_path(command_parts: list[str], root: Path) -> bool:
-    """Return true only when a process argument resolves inside this exact checkout."""
-    root_path = os.path.realpath(str(root))
-    for argument in command_parts:
-        if not isinstance(argument, str) or not os.path.isabs(argument):
-            continue
-        candidate = os.path.realpath(argument)
-        try:
-            if os.path.commonpath((root_path, candidate)) == root_path:
-                return True
-        except ValueError:
-            continue
-    return False
+def command_has_expected_checkout_entry(command_parts: list[str], expected_path: Path) -> bool:
+    """Require the exact checkout-owned executable or script path, not a sibling prefix."""
+    expected = os.path.realpath(str(expected_path))
+    return any(
+        isinstance(argument, str)
+        and os.path.isabs(argument)
+        and os.path.realpath(argument) == expected
+        for argument in command_parts
+    )
 
 
 def managed_services_inventory():
@@ -282,11 +278,11 @@ def managed_services_inventory():
     root = Path(__file__).resolve().parent.parent
     runtime = root / ".runtime"
     definitions = [
-        ("linuxcore-api", runtime / "api.pid", "uvicorn main:app"),
-        ("linuxcore-dashboard", runtime / "web.pid", "local-web.py --directory"),
+        ("linuxcore-api", runtime / "api.pid", "uvicorn main:app", root / "backend/.venv/bin/uvicorn"),
+        ("linuxcore-dashboard", runtime / "web.pid", "local-web.py --directory", root / "scripts/local-web.py"),
     ]
     items = []
-    for name, pid_file, expected in definitions:
+    for name, pid_file, expected, expected_path in definitions:
         pid = None
         state = "stopped"
         if pid_file.is_file():
@@ -295,7 +291,7 @@ def managed_services_inventory():
                 process = psutil.Process(candidate)
                 command_parts = process.cmdline()
                 command = " ".join(command_parts)
-                if expected in command and command_contains_checkout_path(command_parts, root):
+                if expected in command and command_has_expected_checkout_entry(command_parts, expected_path):
                     pid, state = candidate, "running"
                 else:
                     state = "identity_mismatch"
