@@ -46,7 +46,7 @@ button,.nav-item,.lang-btn,.outline-btn{touch-action:manipulation}
   .crumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .top-actions { flex-shrink: 0; }
   .ai-workspace { grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 14px 0 20px; min-height: 0; }
-  .ai-info { order: -1; padding: 13px; }
+  .ai-info { order: 1; padding: 13px; }
   .ai-info h3 { font-size: 11px; }
   .ai-info p, .ai-check, .ai-setup { font-size: 10px; }
   .ai-chat { min-height: 420px; min-width: 0; }
