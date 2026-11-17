@@ -166,11 +166,25 @@ def user_systemctl():
     return path
 
 
+def systemd_user_unavailable_reason():
+    if not shutil.which("systemctl"):
+        return "systemctl is not installed in this Linux user-space."
+    if os.geteuid() == 0:
+        return "The backend is running as root; this application intentionally manages only unprivileged systemd user units."
+    runtime_dir = os.getenv("XDG_RUNTIME_DIR", "").strip()
+    bus_address = os.getenv("DBUS_SESSION_BUS_ADDRESS", "").strip()
+    if not runtime_dir or not bus_address:
+        return "No systemd user session bus is configured (XDG_RUNTIME_DIR / DBUS_SESSION_BUS_ADDRESS). This is common in PRoot/Andronix."
+    probe = run_fixed_command([shutil.which("systemctl"), "--user", "is-system-running"], timeout=4)
+    detail = (probe["stderr"] or probe["stdout"]).strip()
+    return detail[:500] if detail else "The systemd user manager did not respond."
+
+
 def list_user_services():
     systemctl = user_systemctl()
     if not systemctl:
         return {"available": False, "manager": "systemd --user", "items": [],
-                "reason": "A usable unprivileged systemd user manager is not available."}
+                "reason": systemd_user_unavailable_reason()}
     result = run_fixed_command(
         [systemctl, "--user", "list-units", "--type=service", "--all",
          "--no-legend", "--no-pager"], timeout=8
@@ -357,7 +371,7 @@ def diagnostics():
             "user_services": {
                 "available": systemctl is not None,
                 "manager": "systemd --user",
-                "reason": None if systemctl else "A usable unprivileged systemd user manager is not available.",
+                "reason": None if systemctl else systemd_user_unavailable_reason(),
             },
             "containers": {
                 "available": runtime is not None,
