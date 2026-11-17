@@ -522,7 +522,6 @@ async function renderModule(page) {
       } else {
         moduleNotice(managedResult.status === "rejected" ? t("apiUnavailable") : t("noData"));
       }
-      content.append(moduleNode("div","module-stat"));
       moduleNotice(isArabic ? "خدمات systemd الخاصة بالمستخدم" : "systemd user services");
       if (systemdResult.status === "rejected") {
         moduleNotice(t("apiUnavailable"));
