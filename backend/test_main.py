@@ -376,6 +376,26 @@ def test_managed_services_inventory_rejects_unrelated_pid(monkeypatch, tmp_path)
     assert payload["items"][0]["state"] == "identity_mismatch"
     assert payload["items"][0]["pid"] is None
 
+def test_managed_services_inventory_rejects_prefix_related_checkout(monkeypatch, tmp_path):
+    root = tmp_path / "linuxcore"
+    foreign_root = tmp_path / "linuxcore-old"
+    backend = root / "backend"
+    backend.mkdir(parents=True)
+    runtime = root / ".runtime"
+    runtime.mkdir()
+    (runtime / "api.pid").write_text("789")
+
+    class FakeProcess:
+        def __init__(self, pid): pass
+        def cmdline(self):
+            return [str(foreign_root / "backend/.venv/bin/uvicorn"), "main:app"]
+
+    monkeypatch.setattr(main.Path, "resolve", lambda self: backend / "main.py")
+    monkeypatch.setattr(main.psutil, "Process", FakeProcess)
+    payload = main.managed_services_inventory()
+    assert payload["items"][0]["state"] == "identity_mismatch"
+    assert payload["items"][0]["pid"] is None
+
 
 def test_managed_services_action_is_detached_and_limited_to_allowlisted_action(monkeypatch):
     calls = []
