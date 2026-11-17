@@ -244,6 +244,38 @@ def list_rootless_containers():
 
 
 
+class ManagedServiceAction(BaseModel):
+    action: Literal["start", "stop", "restart"]
+
+
+def managed_services_inventory():
+    """Inspect only PID files owned by this checkout and verify process identity."""
+    root = Path(__file__).resolve().parent.parent
+    runtime = root / ".runtime"
+    definitions = [
+        ("linuxcore-api", runtime / "api.pid", "uvicorn main:app"),
+        ("linuxcore-dashboard", runtime / "web.pid", "local-web.py --directory"),
+    ]
+    items = []
+    for name, pid_file, expected in definitions:
+        pid = None
+        state = "stopped"
+        if pid_file.is_file():
+            try:
+                candidate = int(pid_file.read_text(encoding="utf-8").strip())
+                process = psutil.Process(candidate)
+                command = " ".join(process.cmdline())
+                if expected in command and str(root) in command:
+                    pid, state = candidate, "running"
+                else:
+                    state = "identity_mismatch"
+            except (ValueError, OSError, psutil.Error):
+                state = "stale"
+        items.append({"name": name, "pid": pid, "state": state, "scope": "linuxcore", "controllable": True})
+    return {"available": True, "manager": "LinuxCore PID-verified process manager", "items": items,
+            "note": "Only processes verified against this checkout's own PID files are managed."}
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)
@@ -412,6 +444,29 @@ def network():
 @app.get("/api/v1/services")
 def services():
     return list_user_services()
+
+
+@app.get("/api/v1/managed-services")
+def managed_services():
+    return managed_services_inventory()
+
+
+@app.post("/api/v1/managed-services/action")
+def managed_services_action(request: ManagedServiceAction):
+    root = Path(__file__).resolve().parent.parent
+    script = root / "scripts" / ("start.sh" if request.action == "start" else "stop.sh")
+    if not script.is_file():
+        raise HTTPException(status_code=503, detail="LinuxCore lifecycle script is missing.")
+    if request.action == "restart":
+        stopped = run_fixed_command(["bash", str(root / "scripts" / "stop.sh")], timeout=30)
+        if stopped["returncode"] != 0:
+            raise HTTPException(status_code=502, detail=stopped["stderr"] or stopped["stdout"] or "LinuxCore stop failed.")
+        script = root / "scripts" / "start.sh"
+    result = run_fixed_command(["bash", str(script)], timeout=90)
+    if result["returncode"] != 0:
+        raise HTTPException(status_code=502, detail=result["stderr"] or result["stdout"] or "LinuxCore lifecycle action failed.")
+    return {"ok": True, "action": request.action, "output": result["stdout"][-4000:],
+            "scope": "linuxcore-only"}
 
 
 @app.post("/api/v1/services/{unit}/action")
