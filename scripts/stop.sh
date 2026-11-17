@@ -11,7 +11,7 @@ stop_pid() {
   if ! kill -0 "$pid" 2>/dev/null; then echo "$label: stale PID file cleaned"; rm -f "$file"; return 0; fi
   local command_line
   command_line="$(ps -p "$pid" -o args= 2>/dev/null || true)"
-  if [[ "$command_line" != *"$expected"* ]]; then
+  if [[ "$command_line" != *"$expected"* || "$command_line" != *"$ROOT"* ]]; then
     echo "$label: PID $pid does not match the expected service; left untouched"
     echo "PID file retained for manual inspection: $file"
     return 1
