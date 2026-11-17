@@ -23,7 +23,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Live CPU, memory, disk, host identity, uptime, storage, process and network views.
 - Live environment diagnostics for architecture, Python runtime, privilege level, user-service manager, rootless container runtime, network counters and allowlisted diagnostic tools.
 - Graceful handling when the Linux environment restricts /proc network counters.
-- **Services:** Discover and start/stop/restart only services listed by the current unprivileged systemd --user manager. No system-wide or root service control.
+- **Services:** LinuxCore's own API and dashboard processes are discovered through checkout-owned PID files and verified process identities; the page offers lifecycle controls that call only this checkout's start/stop scripts. Separately, start/stop/restart controls remain limited to units discovered by an available unprivileged systemd --user manager. No system-wide or Android service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
@@ -125,6 +125,8 @@ The scripts can be invoked with bash; executable file permissions are not requir
 - GET /api/v1/network
 - GET /api/v1/services
 - POST /api/v1/services/{unit}/action
+- GET /api/v1/managed-services
+- POST /api/v1/managed-services/action
 - GET /api/v1/containers
 - POST /api/v1/containers/{container_id}/action
 - GET /api/v1/terminal/commands
@@ -163,7 +165,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 ## Environment-specific limitations
 
-- systemd --user may be absent in Andronix/PRoot; service controls then report unavailable.
+- systemd --user may be absent in Andronix/PRoot; its separate service section reports the specific missing manager/session-bus reason. LinuxCore's own API/dashboard processes remain visible through PID-verified inventory and can be started/stopped/restarted using only this checkout's lifecycle scripts.
 - Rootless Podman or rootless Docker may not be installed; container controls then report unavailable.
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
