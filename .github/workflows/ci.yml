@@ -39,6 +39,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Install PRoot compatibility runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y proot
+
       - name: Validate shell scripts
         run: bash -n ../scripts/*.sh ../scripts/lib/*.sh
 
@@ -117,3 +122,8 @@ jobs:
 
       - name: Run backend tests
         run: pytest -q
+
+      - name: Test real static-site deployment inside PRoot
+        run: |
+          python_bin="$(command -v python)"
+          proot -r / -w "$GITHUB_WORKSPACE/backend" "$python_bin" -m pytest -q test_deployments.py
