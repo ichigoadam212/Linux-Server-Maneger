@@ -3,7 +3,7 @@
 Cyber-style, bilingual (Arabic / English) local website for monitoring and managing a Linux user-space environment. This repository is not an Android application and does not produce an APK.
 
 **Version:** 0.7.0  
-**Status:** Dashboard, read-only monitoring, scoped user-service/container controls, fixed diagnostic commands, controlled recovery, and a loopback-only static-site server are implemented. Target-device checks remain environment-specific.
+**Status:** Dashboard, read-only monitoring, scoped user-service/container controls, fixed diagnostic commands, controlled recovery, and a Python loopback-only Static Site are implemented. GitHub CI exercises Debian 13 (Trixie) under PRoot; the Redmi/Android phone still requires manual testing.
 
 ## Architecture
 
@@ -91,44 +91,112 @@ Stop both LinuxCore services:
     bash scripts/stop.sh
 
 
-### Deploy and roll back the local static site
+### Deploy and roll back the local Static Site
 
-After starting LinuxCore with the commands above, open the local dashboard at `http://127.0.0.1:8080`, open **Containers**, and use the **Static site** controls. Choose an unused port above 1023 (for example, `18081`) and select **Deploy site**. The dashboard reports the loopback URL. Open that URL on the same device to view the page.
+Start LinuxCore, then open `http://127.0.0.1:8080` and select **Static Site** in the sidebar. This feature is a separate Python standard-library server and does not use the Containers page or require Podman/Docker. The default port is `18081`; both the API and site bind only to `127.0.0.1`.
 
-Edit the HTML in the dashboard and select **Save page**. Select **Roll back page** to restore the previous saved page; the editor reloads the restored content. Use **Start**, **Stop**, and **Restart** to manage the Python server. Stop the static site from the dashboard before running `bash scripts/stop.sh`: the site is a separate process and intentionally does not depend on the dashboard/API staying up. After a crash, reboot, or PRoot session restart, check its state in the dashboard and use **Start** if needed. Runtime files are private to this checkout under `.runtime/deployments`.
+Use **Deploy site**, edit the single HTML page, and select **Save page**. **Roll back page** restores the previous saved page and refreshes the editor. **Start**, **Stop**, and **Restart** control only the Python child whose PID, process start time, and exact command line match LinuxCore metadata. The site process is separate from the dashboard/API and can outlive them; stop the site in the dashboard before `bash scripts/stop.sh`. It does not auto-start after reboot or after the PRoot session is killed. Runtime files live under the private, ignored `.runtime/deployments` directory in this checkout.
 
 ### Copy-paste target-device check
 
-Run these commands inside the existing Debian/PRoot shell on the phone (open it from Termux using your existing Linux launcher). Do not run package installation or change SSH settings for this check. Replace the checkout path in the first command:
+Run inside the existing Debian/PRoot shell on the phone (open it through your existing Termux Linux launcher). Replace the checkout path. If the working tree has edits, preserve/review them before switching branches.
 
 ```sh
 cd /path/to/Linux-Server-Maneger
 git status --short --branch
-git fetch origin feature/rootless-app-deployments
+git fetch origin main feature/rootless-app-deployments
 git switch feature/rootless-app-deployments 2>/dev/null || git switch --track -c feature/rootless-app-deployments origin/feature/rootless-app-deployments
 git pull --ff-only origin feature/rootless-app-deployments
+git rev-parse --abbrev-ref HEAD
+git rev-parse HEAD
+uname -a
+python3 --version
 bash scripts/doctor.sh
+```
+
+If LinuxCore is already running an older checkout, stop any deployed site from the **Static Site** page first. Then restart the dashboard and API so the running Python process loads the updated code:
+
+```sh
+bash scripts/stop.sh
 bash scripts/start.sh
 bash scripts/smoke-test.sh
 ```
 
-If `git status` shows local edits, stop before switching branches and preserve or review them first. If you want to run the optional port-conflict check below, do it before a successful deployment. In the dashboard, deploy the site on `18081`, save a small HTML change, roll it back, and exercise Stop and Start. Then run:
+Open the dashboard and deploy on `18081`. Before that, test a port conflict: in a second Debian terminal run this temporary loopback-only listener, then attempt to deploy on `18082` from the Static Site page. Expect a conflict error and no site to be deployed on that port. Stop the listener with Ctrl-C, then continue with deployment on `18081`.
+
+```sh
+python3 -c 'import socket,time; s=socket.socket(); s.bind(("127.0.0.1",18082)); s.listen(); print("reserved 127.0.0.1:18082"); time.sleep(120)'
+```
+
+Check the API and deployed page, edit it through the local proxy, then roll it back:
 
 ```sh
 SITE_PORT=18081
 curl --fail --show-error http://127.0.0.1:8080/api/v1/health
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/healthz"
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
-curl -sS -o /dev/null -w 'POST status: %{http_code}\n' -X POST "http://127.0.0.1:$SITE_PORT/"
-curl --path-as-is -sS -o /dev/null -w 'Traversal status: %{http_code}\n' "http://127.0.0.1:$SITE_PORT/../../etc/passwd"
-ss -ltn | awk 'NR > 1 && $4 ~ /:(8000|8080|18081)$/ {print $4}'
+curl --fail --show-error -X PUT -H 'Content-Type: application/json' \
+  --data '{"content":"<!doctype html><html><body><h1>Phone test</h1></body></html>"}' \
+  http://127.0.0.1:8080/api/v1/apps/static-site/content
+curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
+curl --fail --show-error -X POST -H 'Content-Type: application/json' \
+  --data '{"confirm":true}' http://127.0.0.1:8080/api/v1/apps/static-site/rollback
+curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
 ```
 
-Expected results: API health and the site page return HTTP 200; `/healthz` returns `linuxcore-site-ok`; POST returns 405; the traversal request returns 404; and the final command shows only `127.0.0.1:8000`, `127.0.0.1:8080`, and `127.0.0.1:18081` for those services. After selecting Stop, the site health request should fail to connect; after Start, it should return 200 again. View the dashboard logs and confirm that request paths and query values are absent. Do not put secrets in the page or test query strings.
+The edited page should contain `Phone test`; after rollback the original page should return. Verify Stop, Start, and Restart through the dashboard (or the allowlisted local API action):
 
-Optional port-conflict check: before the main deployment above, open a second Debian terminal and reserve `18082` with `python3 -c 'import socket,time; s=socket.socket(); s.bind(("127.0.0.1",18082)); s.listen(); print("reserved 127.0.0.1:18082"); time.sleep(120)'`. While it runs, try deploying on `18082`; expect a port-unavailable error and no deployed site. Press Ctrl-C in the second terminal, then deploy successfully on `18081` as above. This temporary listener is loopback-only.
+```sh
+curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"stop"}' \
+  http://127.0.0.1:8080/api/v1/apps/static-site/action
+curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"start"}' \
+  http://127.0.0.1:8080/api/v1/apps/static-site/action
+curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"restart"}' \
+  http://127.0.0.1:8080/api/v1/apps/static-site/action
+curl --fail --show-error "http://127.0.0.1:$SITE_PORT/healthz"
+curl --fail --show-error http://127.0.0.1:8080/api/v1/apps/static-site/logs
+```
 
-Record the Debian/Python/PRoot versions, dashboard result, HTTP statuses, and the `ss` output when reporting. Include failing command output and relevant dashboard error text, but redact tokens, environment files, and private data.
+If `ss` fails in PRoot, use Python to test loopback connections and inspect the kernel TCP tables for the actual local bind addresses. For these listeners every displayed address must be `127.0.0.1` (or `::1` if a service intentionally supports IPv6; LinuxCore expects IPv4 loopback here). A wildcard such as `0.0.0.0` or `::` is a failure.
+
+```sh
+python3 - <<'PY'
+import socket
+ports = {8000, 8080, 18081}
+for port in sorted(ports):
+    sock = socket.socket()
+    sock.settimeout(1)
+    result = sock.connect_ex(("127.0.0.1", port))
+    sock.close()
+    print(f"127.0.0.1:{port}: " + ("reachable" if result == 0 else "not listening"))
+
+tables = (("/proc/net/tcp", socket.AF_INET), ("/proc/net/tcp6", socket.AF_INET6))
+for table, family in tables:
+    try:
+        rows = open(table, encoding="ascii").read().splitlines()[1:]
+    except OSError as error:
+        print(f"{table}: unavailable ({error})")
+        continue
+    for row in rows:
+        fields = row.split()
+        if len(fields) < 4 or fields[3] != "0A":
+            continue
+        address_hex, port_hex = fields[1].split(":")
+        port = int(port_hex, 16)
+        if port not in ports:
+            continue
+        raw = bytes.fromhex(address_hex)
+        if family == socket.AF_INET:
+            address = socket.inet_ntop(family, raw[::-1])
+        else:
+            address = socket.inet_ntop(family, b"".join(raw[i:i+4][::-1] for i in range(0, 16, 4)))
+        print(f"listener: {address}:{port}")
+PY
+```
+
+Expected: API health, site health, and the page return HTTP 200; the health body is `linuxcore-site-ok`; the edited page is retrievable before rollback; Stop returns stopped and makes the health request fail; Start/Restart restore HTTP 200. The socket check shows the three expected ports reachable on loopback, and the TCP table shows only `127.0.0.1:8000`, `127.0.0.1:8080`, and `127.0.0.1:18081`. Logs show method/status but no request path or query. Report the branch/commit, Debian/Python/PRoot versions, HTTP status/output, and relevant error text; redact tokens and private data.
+
+CI runs backend, proxy, frontend contract, shell/security and smoke checks on GitHub-hosted Linux; its integration job uses Debian 13 under PRoot. These do not execute on the Android phone. The phone check above remains pending until you run it on-device.
 ### Keep LinuxCore running in a Linux user session
 
 On a VPS or Linux distribution with a working systemd user manager, install the optional user service:
