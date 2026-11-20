@@ -89,6 +89,9 @@ def _volume_path(executable: str, runtime_name: str, volume_name: str) -> Path:
     try:
         info = json.loads(result["stdout"])[0]
         mountpoint = Path(info["Mountpoint"])
+        labels = info.get("Labels") or info.get("labels") or {}
+        if labels.get("io.linuxcore.app") != APP_ID:
+            raise ValueError("volume is not owned by LinuxCore")
         if not mountpoint.is_absolute() or not mountpoint.is_dir() or mountpoint.is_symlink():
             raise ValueError("unsafe volume mountpoint")
         return mountpoint
@@ -154,7 +157,7 @@ def deploy_site(request: DeployRequest):
     if current.get("conflict"):
         raise HTTPException(status_code=409, detail=current["reason"])
     state_dir, backup = _paths()
-    volume = _run([executable, "volume", "create", VOLUME_NAME], 15)
+    volume = _run([executable, "volume", "create", "--label", APP_LABEL, VOLUME_NAME], 15)
     if volume["returncode"] != 0:
         raise HTTPException(status_code=502, detail="Could not create the persistent site volume.")
     mountpoint = _volume_path(executable, runtime_name, VOLUME_NAME)
