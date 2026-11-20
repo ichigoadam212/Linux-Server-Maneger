@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 from typing import Literal
@@ -23,7 +22,6 @@ VOLUME_NAME = "linuxcore-static-site-data"
 IMAGE = "docker.io/library/nginx:alpine"
 MANAGED_LABEL = "io.linuxcore.managed=static-site"
 APP_LABEL = f"io.linuxcore.app={APP_ID}"
-PORT_RE = re.compile(r"^[0-9]{1,5}$")
 DEFAULT_HTML = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>LinuxCore hosted site</title><h1>Your site is running</h1>
@@ -75,14 +73,13 @@ def _require_runtime():
 
 
 def _paths():
-    root = Path(__file__).resolve().parent.parent
-    state_dir = root / ".runtime" / "deployments"
+    state_dir = Path(__file__).resolve().parent.parent / ".runtime" / "deployments"
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
         state_dir.chmod(0o700)
     except OSError:
         pass
-    return root, state_dir, state_dir / "static-site.previous.html"
+    return state_dir, state_dir / "static-site.previous.html"
 
 
 def _volume_path(executable: str, runtime_name: str, volume_name: str) -> Path:
@@ -156,7 +153,7 @@ def deploy_site(request: DeployRequest):
         raise HTTPException(status_code=409, detail="The LinuxCore static site is already deployed.")
     if current.get("conflict"):
         raise HTTPException(status_code=409, detail=current["reason"])
-    root, state_dir, backup = _paths()
+    state_dir, backup = _paths()
     volume = _run([executable, "volume", "create", VOLUME_NAME], 15)
     if volume["returncode"] != 0:
         raise HTTPException(status_code=502, detail="Could not create the persistent site volume.")
@@ -180,6 +177,20 @@ def deploy_site(request: DeployRequest):
         raise HTTPException(status_code=502, detail=result["stderr"] or "Could not start the static-site container.")
     _atomic_write(backup, DEFAULT_HTML)
     return _site_status(runtime_name, executable)
+
+
+@router.get("/content")
+def get_site_content():
+    runtime_name, executable = _require_runtime()
+    status = _site_status(runtime_name, executable)
+    if not status.get("deployed"):
+        raise HTTPException(status_code=404, detail="Deploy the LinuxCore static site before reading its page.")
+    mountpoint = _volume_path(executable, runtime_name, VOLUME_NAME)
+    try:
+        page = (mountpoint / "index.html").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        raise HTTPException(status_code=502, detail="Could not read the current site page.")
+    return {"content": page, "limit": 65536}
 
 
 @router.put("/content")
