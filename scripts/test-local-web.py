@@ -103,6 +103,19 @@ class LocalProxyTests(unittest.TestCase):
         self.assertEqual(fake.request.data, payload)
         self.assertEqual(fake.request.get_header("Content-type"), "application/json")
 
+    def test_static_site_routes_are_allowlisted_including_page_updates(self):
+        fake = FakeOpener()
+        page = b'{"content":"<h1>Site</h1>"}'
+        with patch.object(MODULE, "OPENER", fake):
+            status, _, body = MODULE.forward_api_request(
+                "PUT", "/api/v1/apps/static-site/content", page, "application/json", TOKEN
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(fake.request.full_url, "http://127.0.0.1:8000/api/v1/apps/static-site/content")
+        self.assertEqual(fake.request.get_method(), "PUT")
+        self.assertEqual(fake.request.data, page)
+        self.assertEqual(fake.request.get_header("Content-type"), "application/json")
+
     def test_unlisted_path_and_wrong_method_are_rejected_before_network(self):
         fake = FakeOpener()
         with patch.object(MODULE, "OPENER", fake):
