@@ -28,7 +28,7 @@ def test_deploy_creates_loopback_only_site_and_persistent_volume(monkeypatch, tm
     def fake_run(argv, timeout=20):
         calls.append(argv)
         if argv[1:3] == ["volume", "inspect"]:
-            return {"returncode": 0, "stdout": json.dumps([{"Mountpoint": str(mountpoint)}]), "stderr": ""}
+            return {"returncode": 0, "stdout": json.dumps([{"Mountpoint": str(mountpoint), "Labels": {"io.linuxcore.app": deployments.APP_ID}}]), "stderr": ""}
         return {"returncode": 0, "stdout": "ok", "stderr": ""}
 
     monkeypatch.setattr(deployments, "_run", fake_run)
@@ -57,7 +57,7 @@ def test_site_content_update_and_rollback(monkeypatch, tmp_path):
     monkeypatch.setattr(deployments, "_site_status", lambda *args: {"deployed": True, "url": "http://127.0.0.1:8081"})
     monkeypatch.setattr(deployments, "_run", lambda argv, timeout=20: {
         "returncode": 0,
-        "stdout": json.dumps([{"Mountpoint": str(mountpoint)}]),
+        "stdout": json.dumps([{"Mountpoint": str(mountpoint), "Labels": {"io.linuxcore.app": deployments.APP_ID}}]),
         "stderr": "",
     })
 
