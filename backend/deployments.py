@@ -326,8 +326,20 @@ def deploy_site(request: DeployRequest):
         _atomic_write(paths["index"], DEFAULT_HTML.encode("utf-8"))
         _atomic_write(paths["backup"], DEFAULT_HTML.encode("utf-8"))
         _atomic_write(paths["port"], str(request.host_port).encode("ascii"))
-        _start_server(paths, request.host_port)
-        return _site_status(paths)
+        try:
+            _start_server(paths, request.host_port)
+            return _site_status(paths)
+        except HTTPException:
+            # A failed first start must be retryable with another port. Preserve
+            # files only if an owned process is still running and may need stopping.
+            try:
+                still_running = _site_status(paths).get("status") == "running"
+            except HTTPException:
+                still_running = True
+            if not still_running:
+                for key in ("index", "backup", "port", "pid"):
+                    _remove_metadata(paths[key])
+            raise
 
 
 @router.get("/content")
