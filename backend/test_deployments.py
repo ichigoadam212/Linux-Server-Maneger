@@ -125,6 +125,27 @@ def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatc
         assert cleanup.status_code in {200, 404}, cleanup.text
 
 
+def test_port_conflict_cleans_failed_deploy_for_retry(monkeypatch, tmp_path):
+    paths = isolated_paths(tmp_path, monkeypatch)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        busy_port = listener.getsockname()[1]
+        failed = client.post(API + "/deploy", json={"host_port": busy_port})
+        assert failed.status_code == 409, failed.text
+        assert not paths["index"].exists()
+        assert client.get(API).json()["deployed"] is False
+
+    port = unused_loopback_port()
+    deployed = client.post(API + "/deploy", json={"host_port": port})
+    assert deployed.status_code == 200, deployed.text
+    try:
+        assert deployed.json()["status"] == "running"
+    finally:
+        stopped = client.post(API + "/action", json={"action": "stop"})
+        assert stopped.status_code == 200, stopped.text
+
+
 def test_stop_never_signals_a_different_process(monkeypatch, tmp_path):
     paths = isolated_paths(tmp_path, monkeypatch)
     port = unused_loopback_port()
