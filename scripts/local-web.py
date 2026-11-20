@@ -155,7 +155,7 @@ class LinuxCoreHandler(SimpleHTTPRequestHandler):
 
     def log_request(self, code="-", size="-"):
         # Request targets may contain sensitive query values; log no URL or headers.
-        sys.stderr.write("%s %s %s\\n" % (self.client_address[0], self.command, code))
+        sys.stderr.write("%s %s %s\n" % (self.client_address[0], self.command, code))
 
     def log_message(self, _fmt, *_args):
         return
