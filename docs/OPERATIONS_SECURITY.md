@@ -23,6 +23,14 @@ To stop LinuxCore:
 bash scripts/stop.sh
 ```
 
+## Local static-site deployment
+
+The Containers page can deploy one simple static website with the supported rootless Podman or rootless Docker runtime. LinuxCore uses a fixed `nginx:alpine` image; it does not accept arbitrary images, launch shell commands, or request elevated privileges. The site content is stored in the named `linuxcore-static-site-data` volume. The container publishes its port only on `127.0.0.1`; it is not reachable from other devices by default.
+
+The page supports start, stop, restart, editing the HTML entry page, viewing the last 200 log lines, and a one-step rollback of the last page edit. The volume survives container restarts and container replacement as long as the rootless container runtime keeps its data. This feature does not make PRoot/Android background execution persistent, serve dynamic applications, configure TLS, or expose a site to the network. Keep secrets out of site HTML.
+
+The API is under `/api/v1/apps/static-site`. Deployment is available only when a non-root LinuxCore process can reach a rootless Podman or rootless Docker runtime. If the runtime is absent or rootful, the API reports that deployment is unavailable.
+
 ## Remote API access boundary
 
 LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1` and serves the dashboard through `scripts/local-web.py` on `127.0.0.1:8080`. The local proxy accepts only fixed API paths, forwards requests to the fixed backend origin, and adds the optional bearer token server-side from `backend/.env`. The browser talks only to the same-origin proxy; it never receives the backend token.
