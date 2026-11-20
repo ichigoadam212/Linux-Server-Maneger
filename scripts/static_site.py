@@ -121,6 +121,18 @@ def handler_for(site_dir: Path):
         def do_DELETE(self):
             self._respond(405, b"Method not allowed\n", "text/plain; charset=utf-8")
 
+        def do_PATCH(self):
+            self._respond(405, b"Method not allowed\n", "text/plain; charset=utf-8")
+
+        def do_OPTIONS(self):
+            self._respond(405, b"Method not allowed\n", "text/plain; charset=utf-8")
+
+        def do_TRACE(self):
+            self._respond(405, b"Method not allowed\n", "text/plain; charset=utf-8")
+
+        def do_CONNECT(self):
+            self._respond(405, b"Method not allowed\n", "text/plain; charset=utf-8")
+
         def log_request(self, code="-", size="-"):
             # Request URLs and query strings can contain secrets; omit them.
             line = f"{self.client_address[0]} {self.command} {code}\n".encode("ascii", "replace")
