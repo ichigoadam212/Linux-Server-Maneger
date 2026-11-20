@@ -3,7 +3,7 @@
 Cyber-style, bilingual (Arabic / English) local website for monitoring and managing a Linux user-space environment. This repository is not an Android application and does not produce an APK.
 
 **Version:** 0.7.0  
-**Status:** Dashboard, read-only monitoring, scoped user-service/container controls, fixed diagnostic commands, and controlled recovery are implemented. Target-device checks remain environment-specific.
+**Status:** Dashboard, read-only monitoring, scoped user-service/container controls, fixed diagnostic commands, controlled recovery, and a loopback-only static-site server are implemented. Target-device checks remain environment-specific.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Graceful handling when the Linux environment restricts /proc network counters.
 - **Services:** LinuxCore's own API and dashboard processes are discovered through checkout-owned PID files and verified process identities; the page offers lifecycle controls that call only this checkout's start/stop scripts. Separately, start/stop/restart controls remain limited to units discovered by an available unprivileged systemd --user manager. No system-wide or Android service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
-- **Static site deployment:** Deploy one fixed Nginx app through rootless Podman or rootless Docker. LinuxCore creates a persistent named volume, binds the site to `127.0.0.1`, checks container health, shows the last 200 log lines, and supports editing the page with one-step rollback. The image is fixed; arbitrary images and shell commands are not accepted. The app is managed from the Containers page.
+- **Static site deployment:** Run one editable HTML page using a fixed Python standard-library HTTP server, with no container runtime requirement. It binds only to `127.0.0.1`, serves only `/` and `/index.html` plus a health endpoint, applies a restrictive CSP, caps page and log size, and supports start/stop/restart, editing, logs and one-step rollback. The page and private state live under `.runtime/deployments`; the process ends when the Linux session or device stops and can be restarted from the dashboard.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
@@ -171,7 +171,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 ## Environment-specific limitations
 
 - systemd --user may be absent in Andronix/PRoot; its separate service section reports the specific missing manager/session-bus reason. LinuxCore's own API/dashboard processes remain visible through PID-verified inventory and can be started/stopped/restarted using only this checkout's lifecycle scripts.
-- Rootless Podman or rootless Docker may not be installed; container controls then report unavailable.
+- Rootless Podman or rootless Docker may not be installed; container controls then report unavailable. Static-site hosting uses Python and works without those runtimes, including in Debian/PRoot.
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
@@ -195,13 +195,14 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Startup/status/recovery/smoke probes support backend bearer tokens without exposing them to browser code.
 - [x] Static security checks cover loopback binding, CORS, CSP, tracked secrets and runtime-file exclusions.
 - [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
-- [x] GitHub Actions CI validates the gateway transport and authentication, local proxy, static security checks, loopback smoke tests in both API modes, and the backend API suite.
+- [x] GitHub Actions CI validates the gateway transport and authentication, local proxy, static security checks, loopback smoke tests in both API modes, the backend API suite, and a real static-site HTTP deployment in PRoot.
 
 ### Final local target-device acceptance — only remaining for the phone build
 
 - [ ] Pull the reviewed branch on the target phone, start LinuxCore and run `bash scripts/smoke-test.sh`.
 - [ ] Confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] Record which user-service manager and rootless container runtime are actually available on the phone.
+- [ ] Deploy the static page from the dashboard and confirm the loopback URL in the phone browser.
 - [ ] Confirm start/stop/recovery behavior when Android backgrounds the Linux environment.
 
 ### Deferred: optional VPS and public hosting
