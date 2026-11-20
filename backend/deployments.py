@@ -207,8 +207,11 @@ def _start_server(paths, port: int):
     if not paths["site"].is_dir() or paths["site"].is_symlink():
         raise HTTPException(status_code=503, detail="The private static-site directory is unavailable.")
     old_metadata = _read_process_metadata(paths)
-    if _same_process(old_metadata, port, paths["site"]) and _health_check(port):
-        return
+    existing = _same_process(old_metadata, port, paths["site"])
+    if existing is not None:
+        if _health_check(port):
+            return
+        _stop_server(paths, port)
     command = [
         str(Path(sys.executable).resolve()), str(paths["script"].resolve()),
         "run", "--port", str(port), "--site-dir", str(paths["site"].resolve()),
