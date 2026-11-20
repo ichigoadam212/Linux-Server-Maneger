@@ -26,12 +26,16 @@ def isolated_paths(tmp_path, monkeypatch):
         "site": site,
         "index": site / "index.html",
         "backup": state / "static-site.previous.html",
+        "journal": state / "static-site.transaction.json",
         "pid": state / "static-site.pid",
         "port": state / "static-site.port",
         "log": site / "static-site.log",
         "script": SERVER_SCRIPT,
     }
-    monkeypatch.setattr(deployments, "_paths", lambda: paths)
+    def provide_paths():
+        deployments._recover_page_transaction(paths)
+        return paths
+    monkeypatch.setattr(deployments, "_paths", provide_paths)
     monkeypatch.setattr(deployments, "SCRIPT_PATH", SERVER_SCRIPT)
     return paths
 
@@ -61,6 +65,7 @@ def test_deploy_validates_port_and_content_size():
     assert too_large.status_code == 422
     too_many_utf8_bytes = client.put(API + "/content", json={"content": "é" * 32769})
     assert too_many_utf8_bytes.status_code == 422
+    assert client.post(API + "/rollback").status_code == 422
 
 
 def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatch, tmp_path):
@@ -89,14 +94,17 @@ def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatc
         code, _, body = request_site(port, path="/%2e%2e/README.md")
         assert code == 404
         assert b"Not found" in body
-        for method in ("POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE", "CONNECT"):
-            assert request_site(port, method=method)[0] == 405
+        for method in ("POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE", "CONNECT", "BREW"):
+            code, method_headers, _ = request_site(port, method=method)
+            assert code == 405
+            assert "default-src 'self'" in method_headers["Content-Security-Policy"]
+            assert method_headers["Allow"] == "GET, HEAD"
         request_site(port, path="/?token=must-not-be-logged")
 
         saved = client.put(API + "/content", json={"content": "<h1>Updated</h1>"})
         assert saved.status_code == 200, saved.text
         assert request_site(port)[2] == b"<h1>Updated</h1>"
-        rolled_back = client.post(API + "/rollback")
+        rolled_back = client.post(API + "/rollback", json={"confirm": True})
         assert rolled_back.status_code == 200, rolled_back.text
         assert b"Your site is running" in request_site(port)[2]
         assert paths["backup"].read_text(encoding="utf-8") == "<h1>Updated</h1>"
@@ -145,6 +153,42 @@ def test_port_conflict_cleans_failed_deploy_for_retry(monkeypatch, tmp_path):
         stopped = client.post(API + "/action", json={"action": "stop"})
         assert stopped.status_code == 200, stopped.text
 
+
+
+def test_interrupted_page_transaction_recovers_current_and_backup(monkeypatch, tmp_path):
+    paths = isolated_paths(tmp_path, monkeypatch)
+    current = "<h1>Current</h1>"
+    previous = "<h1>Previous</h1>"
+    paths["index"].write_text(current, encoding="utf-8")
+    paths["backup"].write_text(previous, encoding="utf-8")
+    paths["port"].write_text("18083", encoding="ascii")
+
+    original_write = deployments._atomic_write
+    writes = 0
+
+    def fail_once_on_backup(path, content, mode=0o600):
+        nonlocal writes
+        writes += 1
+        if writes == 3:
+            raise OSError("simulated interruption before backup replacement")
+        return original_write(path, content, mode)
+
+    monkeypatch.setattr(deployments, "_atomic_write", fail_once_on_backup)
+    interrupted = client.put(API + "/content", json={"content": "<h1>New</h1>"})
+    assert interrupted.status_code == 503
+    assert paths["journal"].is_file()
+
+    recovered = client.get(API + "/content")
+    assert recovered.status_code == 200, recovered.text
+    assert recovered.json()["content"] == "<h1>New</h1>"
+    assert paths["index"].read_text(encoding="utf-8") == "<h1>New</h1>"
+    assert paths["backup"].read_text(encoding="utf-8") == current
+    assert not paths["journal"].exists()
+
+    rolled_back = client.post(API + "/rollback", json={"confirm": True})
+    assert rolled_back.status_code == 200, rolled_back.text
+    assert client.get(API + "/content").json()["content"] == current
+    assert paths["backup"].read_text(encoding="utf-8") == "<h1>New</h1>"
 
 def test_stop_never_signals_a_different_process(monkeypatch, tmp_path):
     paths = isolated_paths(tmp_path, monkeypatch)

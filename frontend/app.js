@@ -498,8 +498,11 @@ async function renderStaticSite(content, isArabic, requestId) {
   pageActions.append(moduleActionButton(t("rollbackSite"), async (event) => {
     const button = event.currentTarget; button.disabled = true;
     try {
-      await postJson(API_BASE + "/api/v1/apps/static-site/rollback", {}, 12000);
-      editor.value = ""; toast(t("siteRollbackDone"));
+      await postJson(API_BASE + "/api/v1/apps/static-site/rollback", {confirm:true}, 12000);
+      const restored = await fetchJson(API_BASE + "/api/v1/apps/static-site/content", {
+        cache:"no-store", signal:AbortSignal.timeout(12000)
+      });
+      editor.value = restored.content || ""; toast(t("siteRollbackDone"));
     } catch (error) { toast(error.message || t("apiUnavailable")); }
     finally { button.disabled = false; }
   }));

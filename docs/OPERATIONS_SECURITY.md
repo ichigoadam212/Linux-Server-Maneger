@@ -29,7 +29,7 @@ The Containers page can run one editable static HTML page using Python's standar
 
 The server binds only to `127.0.0.1` and serves `/`, `/index.html`, and `/healthz`. Other paths return 404 and write methods return 405. Responses include a restrictive Content Security Policy, `nosniff`, no-store caching, and frame protections. Page content is limited to 64 KiB; the access log is capped and excludes request paths and query strings. LinuxCore stores the page and state in owner-only files under `.runtime/deployments`, updates files atomically, and verifies process identity and creation time before sending stop signals.
 
-The dashboard supports start, stop, restart, editing the HTML entry page, viewing the last 200 log lines, and one-step rollback of the last page edit. This is a single-page static host; it does not upload assets, run dynamic applications, configure TLS, or expose the site to other devices. The background process ends when the Linux session or device is stopped; start it again from the dashboard after that. Keep secrets out of site HTML.
+The dashboard supports start, stop, restart, editing the HTML entry page, viewing the last 200 log lines, and one-step rollback of the last page edit. The page and rollback copy are updated through a private write-ahead journal; if a write is interrupted, the next API operation completes the recorded transaction before reporting site state. A rollback POST requires an explicit JSON confirmation. This is a single-page static host; it does not upload assets, run dynamic applications, configure TLS, or expose the site to other devices. The site runs as a separate process and may outlive the dashboard/API; stop the site in the dashboard before stopping LinuxCore. It does not auto-start after reboot or a killed PRoot session. After a crash, stale PID metadata is ignored unless both process creation time and the exact server command match; Start can then recover the service. Keep secrets out of site HTML.
 
 ## Remote API access boundary
 
@@ -139,7 +139,7 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 
 ## PRoot / Android limitations
 
-PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. The local static-site server uses Python and loopback sockets, so it does not depend on a container runtime. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
+PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. The local static-site server uses Python and loopback sockets, so it does not depend on a container runtime. GitHub Actions validates a real deployment in a Debian 13 (Trixie) PRoot rootfs; this does not establish Android or phone-browser behavior. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
 
 ## Incident response
 

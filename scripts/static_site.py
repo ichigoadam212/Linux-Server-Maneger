@@ -40,6 +40,7 @@ def read_page(index: Path) -> bytes:
             body = page.read(MAX_PAGE_BYTES + 1)
         if len(body) > MAX_PAGE_BYTES:
             raise ValueError("page exceeds its size limit")
+        body.decode("utf-8")
         return body
     finally:
         os.close(fd)
@@ -52,9 +53,10 @@ def append_access_log(path: Path, line: bytes) -> None:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             return
-        if info.st_size >= MAX_LOG_BYTES:
+        bounded_line = line[:512]
+        if info.st_size + len(bounded_line) > MAX_LOG_BYTES:
             os.ftruncate(fd, 0)
-        os.write(fd, line[:512])
+        os.write(fd, bounded_line)
     finally:
         os.close(fd)
 
@@ -76,6 +78,8 @@ def handler_for(site_dir: Path):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
+            if status == 405:
+                self.send_header("Allow", "GET, HEAD")
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Security-Policy", CSP)
@@ -84,6 +88,13 @@ def handler_for(site_dir: Path):
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(body)
+
+        def send_error(self, code, message=None, explain=None):
+            # Keep parser and unsupported-method errors plain and protected too.
+            self.close_connection = True
+            if code == 501:
+                code = 405
+            self._respond(code, b"Request rejected\n", "text/plain; charset=utf-8")
 
         def do_GET(self):
             self._serve()

@@ -1,6 +1,8 @@
 """Loopback-only local static-site deployment controls for LinuxCore."""
 from __future__ import annotations
 
+import base64
+import binascii
 import http.client
 import json
 import os
@@ -19,6 +21,7 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/apps/static-site", tags=["apps"])
 MAX_PAGE_BYTES = 65536
+MAX_TRANSACTION_BYTES = 180000
 MAX_LOG_BYTES = 262144
 DEFAULT_HTML = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -40,6 +43,10 @@ class ContentRequest(BaseModel):
 
 class ActionRequest(BaseModel):
     action: Literal["start", "stop", "restart"]
+
+
+class RollbackRequest(BaseModel):
+    confirm: Literal[True]
 
 
 def _private_directory(path: Path) -> None:
@@ -65,16 +72,19 @@ def _paths():
     _private_directory(runtime_dir)
     _private_directory(state_dir)
     _private_directory(site_dir)
-    return {
+    paths = {
         "state": state_dir,
         "site": site_dir,
         "index": site_dir / "index.html",
         "backup": state_dir / "static-site.previous.html",
+        "journal": state_dir / "static-site.transaction.json",
         "pid": state_dir / "static-site.pid",
         "port": state_dir / "static-site.port",
         "log": site_dir / "static-site.log",
         "script": SCRIPT_PATH,
     }
+    _recover_page_transaction(paths)
+    return paths
 
 
 def _read_bytes(path: Path, maximum: int) -> bytes:
@@ -122,6 +132,68 @@ def _atomic_write(path: Path, content: bytes, mode: int = 0o600) -> None:
         except OSError:
             pass
 
+
+
+def _write_page_pair(paths, current: bytes, backup: bytes) -> None:
+    """Commit current and rollback pages as one recoverable state transition."""
+    for page in (current, backup):
+        if len(page) > MAX_PAGE_BYTES:
+            raise HTTPException(status_code=422, detail="Page content exceeds the 64 KiB limit.")
+        try:
+            page.decode("utf-8")
+        except UnicodeError:
+            raise HTTPException(status_code=422, detail="Page content must be valid UTF-8.")
+    journal = json.dumps({
+        "version": 1,
+        "current": base64.b64encode(current).decode("ascii"),
+        "backup": base64.b64encode(backup).decode("ascii"),
+    }, separators=(",", ":")).encode("ascii")
+    if len(journal) > MAX_TRANSACTION_BYTES:
+        raise HTTPException(status_code=422, detail="Page transaction exceeds its size limit.")
+    try:
+        _atomic_write(paths["journal"], journal)
+        _atomic_write(paths["index"], current)
+        _atomic_write(paths["backup"], backup)
+    except OSError as exc:
+        # Leave the journal in place. The next API request completes both
+        # replacements before it reports site state or serves an edit operation.
+        raise HTTPException(
+            status_code=503,
+            detail="The page change is pending recovery; retry after the next API request.",
+        ) from exc
+    _remove_metadata(paths["journal"])
+
+
+def _recover_page_transaction(paths) -> None:
+    try:
+        raw = _read_bytes(paths["journal"], MAX_TRANSACTION_BYTES)
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="The saved page transaction is unsafe or invalid.") from exc
+    try:
+        value = json.loads(raw.decode("ascii"))
+        if (not isinstance(value, dict) or set(value) != {"version", "current", "backup"}
+                or isinstance(value["version"], bool) or value["version"] != 1):
+            raise ValueError("invalid transaction record")
+        pages = {}
+        for key in ("current", "backup"):
+            encoded = value[key]
+            if not isinstance(encoded, str):
+                raise ValueError("invalid transaction page")
+            page = base64.b64decode(encoded, validate=True)
+            if len(page) > MAX_PAGE_BYTES:
+                raise ValueError("transaction page exceeds its limit")
+            page.decode("utf-8")
+            pages[key] = page
+    except (UnicodeError, ValueError, TypeError, KeyError, binascii.Error, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=409, detail="The saved page transaction is unsafe or invalid.") from exc
+    try:
+        _atomic_write(paths["index"], pages["current"])
+        _atomic_write(paths["backup"], pages["backup"])
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="Could not finish recovering the saved page transaction.") from exc
+    _remove_metadata(paths["journal"])
 
 def _remove_metadata(path: Path) -> None:
     try:
@@ -201,6 +273,21 @@ def _health_check(port: int, timeout: float = 0.35) -> bool:
         connection.close()
 
 
+def _terminate_child(process: subprocess.Popen) -> None:
+    """Stop only the Popen child created by this request after setup fails."""
+    try:
+        process.terminate()
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+            process.wait(timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    except OSError:
+        pass
+
+
 def _start_server(paths, port: int):
     if not paths["script"].is_file() or paths["script"].is_symlink():
         raise HTTPException(status_code=503, detail="The fixed static-site server script is unavailable.")
@@ -228,14 +315,17 @@ def _start_server(paths, port: int):
     try:
         created = psutil.Process(process.pid).create_time()
     except psutil.Error:
-        try:
-            process.terminate()
-        except OSError:
-            pass
+        _terminate_child(process)
         raise HTTPException(status_code=503, detail="Could not verify the local static-site process.")
     metadata = {"pid": process.pid, "created": created}
-    _atomic_write(paths["pid"], json.dumps(metadata).encode("ascii"))
-    _atomic_write(paths["port"], str(port).encode("ascii"))
+    try:
+        _atomic_write(paths["pid"], json.dumps(metadata).encode("ascii"))
+        _atomic_write(paths["port"], str(port).encode("ascii"))
+    except OSError as exc:
+        _terminate_child(process)
+        _remove_metadata(paths["pid"])
+        _remove_metadata(paths["port"])
+        raise HTTPException(status_code=503, detail="Could not persist the static-site process identity.") from exc
 
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
@@ -281,7 +371,7 @@ def _stop_server(paths, port: int) -> None:
 def _site_status(paths):
     port = _read_port(paths)
     try:
-        _read_bytes(paths["index"], MAX_PAGE_BYTES)
+        _read_text(paths["index"], MAX_PAGE_BYTES)
     except FileNotFoundError:
         return {"deployed": False}
     except (OSError, UnicodeError, ValueError):
@@ -323,10 +413,10 @@ def deploy_site(request: DeployRequest):
             raise HTTPException(status_code=409, detail=current["reason"])
         if request.host_port < 1024 or request.host_port > 65535:
             raise HTTPException(status_code=422, detail="Port must be between 1024 and 65535.")
-        _atomic_write(paths["index"], DEFAULT_HTML.encode("utf-8"))
-        _atomic_write(paths["backup"], DEFAULT_HTML.encode("utf-8"))
-        _atomic_write(paths["port"], str(request.host_port).encode("ascii"))
         try:
+            default_page = DEFAULT_HTML.encode("utf-8")
+            _write_page_pair(paths, default_page, default_page)
+            _atomic_write(paths["port"], str(request.host_port).encode("ascii"))
             _start_server(paths, request.host_port)
             return _site_status(paths)
         except HTTPException:
@@ -337,9 +427,13 @@ def deploy_site(request: DeployRequest):
             except HTTPException:
                 still_running = True
             if not still_running:
-                for key in ("index", "backup", "port", "pid"):
+                for key in ("index", "backup", "journal", "port", "pid"):
                     _remove_metadata(paths[key])
             raise
+        except OSError as exc:
+            for key in ("index", "backup", "journal", "port", "pid"):
+                _remove_metadata(paths[key])
+            raise HTTPException(status_code=503, detail="Could not persist static-site deployment state.") from exc
 
 
 @router.get("/content")
@@ -358,7 +452,11 @@ def get_site_content():
 
 @router.put("/content")
 def update_site_content(request: ContentRequest):
-    if len(request.content.encode("utf-8")) > MAX_PAGE_BYTES:
+    try:
+        updated = request.content.encode("utf-8")
+    except UnicodeEncodeError:
+        raise HTTPException(status_code=422, detail="Page content must be valid UTF-8.")
+    if len(updated) > MAX_PAGE_BYTES:
         raise HTTPException(status_code=422, detail="Page content exceeds the 64 KiB UTF-8 limit.")
     with STATE_LOCK:
         paths = _paths()
@@ -367,15 +465,15 @@ def update_site_content(request: ContentRequest):
             raise HTTPException(status_code=404, detail="Deploy the LinuxCore static site before editing it.")
         try:
             previous = _read_bytes(paths["index"], MAX_PAGE_BYTES)
-        except (OSError, ValueError):
-            raise HTTPException(status_code=409, detail="The current site page is not a safe regular file.")
-        _atomic_write(paths["backup"], previous)
-        _atomic_write(paths["index"], request.content.encode("utf-8"))
+            previous.decode("utf-8")
+        except (OSError, UnicodeError, ValueError):
+            raise HTTPException(status_code=409, detail="The current site page is not a safe UTF-8 file.")
+        _write_page_pair(paths, updated, previous)
         return {"ok": True, "rollback_available": True, "url": status["url"]}
 
 
 @router.post("/rollback")
-def rollback_site():
+def rollback_site(_request: RollbackRequest):
     with STATE_LOCK:
         paths = _paths()
         status = _site_status(paths)
@@ -386,8 +484,7 @@ def rollback_site():
             current = _read_bytes(paths["index"], MAX_PAGE_BYTES)
         except (OSError, ValueError):
             raise HTTPException(status_code=404, detail="No valid previous site page is available.")
-        _atomic_write(paths["backup"], current)
-        _atomic_write(paths["index"], previous)
+        _write_page_pair(paths, previous, current)
         return {"ok": True, "rollback_available": True, "url": status["url"]}
 
 

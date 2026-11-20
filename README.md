@@ -25,7 +25,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Graceful handling when the Linux environment restricts /proc network counters.
 - **Services:** LinuxCore's own API and dashboard processes are discovered through checkout-owned PID files and verified process identities; the page offers lifecycle controls that call only this checkout's start/stop scripts. Separately, start/stop/restart controls remain limited to units discovered by an available unprivileged systemd --user manager. No system-wide or Android service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
-- **Static site deployment:** Run one editable HTML page using a fixed Python standard-library HTTP server, with no container runtime requirement. It binds only to `127.0.0.1`, serves only `/` and `/index.html` plus a health endpoint, applies a restrictive CSP, caps page and log size, and supports start/stop/restart, editing, logs and one-step rollback. The page and private state live under `.runtime/deployments`; the process ends when the Linux session or device stops and can be restarted from the dashboard.
+- **Static site deployment:** Run one editable HTML page using a fixed Python standard-library HTTP server, with no container runtime requirement. It binds only to `127.0.0.1`, serves only `/` and `/index.html` plus a health endpoint, applies a restrictive CSP, caps page and log size, and supports start/stop/restart, editing, logs and one-step rollback. Page and process state live in owner-only files under `.runtime/deployments`; a write-ahead journal recovers interrupted edit/rollback transactions. The site is a separate process: stop it from the dashboard before stopping LinuxCore. It does not auto-start after a reboot or a killed PRoot session; start it again from the dashboard.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
@@ -90,6 +90,45 @@ Stop both LinuxCore services:
 
     bash scripts/stop.sh
 
+
+### Deploy and roll back the local static site
+
+After starting LinuxCore with the commands above, open the local dashboard at `http://127.0.0.1:8080`, open **Containers**, and use the **Static site** controls. Choose an unused port above 1023 (for example, `18081`) and select **Deploy site**. The dashboard reports the loopback URL. Open that URL on the same device to view the page.
+
+Edit the HTML in the dashboard and select **Save page**. Select **Roll back page** to restore the previous saved page; the editor reloads the restored content. Use **Start**, **Stop**, and **Restart** to manage the Python server. Stop the static site from the dashboard before running `bash scripts/stop.sh`: the site is a separate process and intentionally does not depend on the dashboard/API staying up. After a crash, reboot, or PRoot session restart, check its state in the dashboard and use **Start** if needed. Runtime files are private to this checkout under `.runtime/deployments`.
+
+### Copy-paste target-device check
+
+Run these commands inside the existing Debian/PRoot shell on the phone (open it from Termux using your existing Linux launcher). Do not run package installation or change SSH settings for this check. Replace the checkout path in the first command:
+
+```sh
+cd /path/to/Linux-Server-Maneger
+git status --short --branch
+git fetch origin feature/rootless-app-deployments
+git switch feature/rootless-app-deployments 2>/dev/null || git switch --track -c feature/rootless-app-deployments origin/feature/rootless-app-deployments
+git pull --ff-only origin feature/rootless-app-deployments
+bash scripts/doctor.sh
+bash scripts/start.sh
+bash scripts/smoke-test.sh
+```
+
+If `git status` shows local edits, stop before switching branches and preserve or review them first. If you want to run the optional port-conflict check below, do it before a successful deployment. In the dashboard, deploy the site on `18081`, save a small HTML change, roll it back, and exercise Stop and Start. Then run:
+
+```sh
+SITE_PORT=18081
+curl --fail --show-error http://127.0.0.1:8080/api/v1/health
+curl --fail --show-error "http://127.0.0.1:$SITE_PORT/healthz"
+curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
+curl -sS -o /dev/null -w 'POST status: %{http_code}\n' -X POST "http://127.0.0.1:$SITE_PORT/"
+curl --path-as-is -sS -o /dev/null -w 'Traversal status: %{http_code}\n' "http://127.0.0.1:$SITE_PORT/../../etc/passwd"
+ss -ltn | awk 'NR > 1 && $4 ~ /:(8000|8080|18081)$/ {print $4}'
+```
+
+Expected results: API health and the site page return HTTP 200; `/healthz` returns `linuxcore-site-ok`; POST returns 405; the traversal request returns 404; and the final command shows only `127.0.0.1:8000`, `127.0.0.1:8080`, and `127.0.0.1:18081` for those services. After selecting Stop, the site health request should fail to connect; after Start, it should return 200 again. View the dashboard logs and confirm that request paths and query values are absent. Do not put secrets in the page or test query strings.
+
+Optional port-conflict check: before the main deployment above, open a second Debian terminal and reserve `18082` with `python3 -c 'import socket,time; s=socket.socket(); s.bind(("127.0.0.1",18082)); s.listen(); print("reserved 127.0.0.1:18082"); time.sleep(120)'`. While it runs, try deploying on `18082`; expect a port-unavailable error and no deployed site. Press Ctrl-C in the second terminal, then deploy successfully on `18081` as above. This temporary listener is loopback-only.
+
+Record the Debian/Python/PRoot versions, dashboard result, HTTP statuses, and the `ss` output when reporting. Include failing command output and relevant dashboard error text, but redact tokens, environment files, and private data.
 ### Keep LinuxCore running in a Linux user session
 
 On a VPS or Linux distribution with a working systemd user manager, install the optional user service:
@@ -162,6 +201,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - No arbitrary shell execution and no user-supplied command strings.
 - Service actions are restricted to discovered systemd --user units.
 - Container actions require an accessible rootless runtime and a container present in its current inventory.
+- Static-site content is a single UTF-8 HTML page capped at 64 KiB. The fixed server binds only to 127.0.0.1, rejects other paths and unsupported methods, and verifies its recorded process identity before stop signals.
 - No sudo, root escalation, system-wide service control, firewall changes, package-manager endpoint, or Android system access.
 - AI is advisory-only and must not be treated as an execution agent.
 - Recovery operates only on this repository's own local startup scripts and backs up the backend environment file before running them.
@@ -172,6 +212,7 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 
 - systemd --user may be absent in Andronix/PRoot; its separate service section reports the specific missing manager/session-bus reason. LinuxCore's own API/dashboard processes remain visible through PID-verified inventory and can be started/stopped/restarted using only this checkout's lifecycle scripts.
 - Rootless Podman or rootless Docker may not be installed; container controls then report unavailable. Static-site hosting uses Python and works without those runtimes, including in Debian/PRoot.
+- Static-site hosting serves one page only. It does not upload assets, provide TLS, or start automatically after reboot; Android may stop it when the Linux session is killed.
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
 - DeepSeek chat requires the user's own API key.
@@ -197,13 +238,16 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - [x] Authenticated gateway implementation and isolated Node tests are present. External gateway deployment is not part of local phone acceptance.
 - [x] GitHub Actions CI validates the gateway transport and authentication, local proxy, static security checks, loopback smoke tests in both API modes, the backend API suite, and a real static-site HTTP deployment in PRoot.
 
-### Final local target-device acceptance — only remaining for the phone build
+### Final local target-device acceptance — pending phone execution
 
-- [ ] Pull the reviewed branch on the target phone, start LinuxCore and run `bash scripts/smoke-test.sh`.
+CI validates backend/frontend/shell/security behavior and runs the deployment API against a live Python server inside Debian 13 (Trixie) under PRoot. It does not exercise Android networking, browser behavior, backgrounding, or Termux/PRoot process lifetime. No phone-side test has been run in this environment; the copy-paste checklist above is the required device check.
+
+- [ ] Pull this branch on the target phone, start LinuxCore and run `bash scripts/smoke-test.sh`.
 - [ ] Confirm the dashboard and Arabic/English layout in the phone browser.
 - [ ] Record which user-service manager and rootless container runtime are actually available on the phone.
 - [ ] Deploy the static page from the dashboard and confirm the loopback URL in the phone browser.
-- [ ] Confirm start/stop/recovery behavior when Android backgrounds the Linux environment.
+- [ ] Test edit/rollback, port-conflict recovery, and stop/start behavior on the phone.
+- [ ] Confirm lifecycle behavior when Android backgrounds or kills the Linux environment.
 
 ### Deferred: optional VPS and public hosting
 
