@@ -6,7 +6,7 @@ const API_BASE = ""; // Both local and hosted dashboards use their same-origin A
 const translations = {
   en: {
     workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
-    services:"Services", storage:"Storage", processes:"Processes", networkPage:"Network", containers:"Containers",
+    services:"Services", storage:"Storage", processes:"Processes", networkPage:"Network", containers:"Containers", staticSite:"Static Site",
     terminal:"Terminal", security:"Security", recovery:"Recovery", ai:"AI Assistant", settings:"Settings",
     demoMode:"Demo mode", awaiting:"Awaiting server connection", systemStandby:"SYSTEM STANDBY", systemLive:"LIVE",
     hostConnected:"Host connected", preview:"Preview environment", previewText:"Live metrics appear when a Linux host is connected. No sample values are shown.",
@@ -25,7 +25,7 @@ const translations = {
     serviceDescription:"Manage only services owned by your unprivileged systemd user session.",
     linuxcoreOwned:"LinuxCore managed processes", linuxcoreControlNote:"These controls affect only this LinuxCore checkout. System services are never touched.", systemdUnavailableDetail:"Systemd user services are unavailable here; LinuxCore processes can still be monitored separately.", startAll:"Start LinuxCore", stopAll:"Stop LinuxCore", restartAll:"Restart LinuxCore", running:"Running", stopped:"Stopped", identityMismatch:"PID identity mismatch", stalePid:"Stale PID file",
     containersDescription:"Inspect and control containers only through an accessible rootless Podman or Docker runtime.",
-    staticSiteTitle:"Static site", staticSiteDescription:"Run a local static site with editable HTML, health status, logs, and one-step rollback.", staticSitePort:"Local port", deploySite:"Deploy site", siteLive:"Site is running", siteStopped:"Site is stopped", siteUnavailable:"Site is not deployed", editSite:"HTML page", saveSite:"Save page", rollbackSite:"Roll back page", siteLogs:"View logs", siteActionDone:"Site action completed", siteDeployDone:"Site deployed", siteSaveDone:"Page saved. Previous page can be restored.", siteRollbackDone:"Previous page restored.", siteOnlyLoopback:"The site binds to 127.0.0.1 and runs as this Linux user.", staticSiteLocalOnly:"Static-site deployment is available from the local LinuxCore dashboard only.",
+    staticSiteTitle:"Static site", staticSiteDescription:"Run one editable HTML page with the Python standard-library server. Independent of Podman and Docker; loopback only.", staticSitePort:"Local port", deploySite:"Deploy site", siteLive:"Site is running", siteStopped:"Site is stopped", siteUnavailable:"Site is not deployed", editSite:"HTML page", saveSite:"Save page", rollbackSite:"Roll back page", siteLogs:"View logs", siteActionDone:"Site action completed", siteDeployDone:"Site deployed", siteSaveDone:"Page saved. Previous page can be restored.", siteRollbackDone:"Previous page restored.", siteOnlyLoopback:"The site binds to 127.0.0.1 and runs as this Linux user.", staticSiteLocalOnly:"Static-site deployment is available from the local LinuxCore dashboard only.",
     terminalDisabled:"Run a fixed set of read-only diagnostic commands. Arbitrary shell input is intentionally unavailable.",
     securityDescription:"Current security boundaries for this project.", recoveryDescription:"Check LinuxCore and safely restart only its own local services.", settingsDescription:"Local integration and configuration status.",
     noData:"No data is available in the current environment.", unavailableNetwork:"Network counters are restricted by this Linux environment.",
@@ -40,7 +40,7 @@ const translations = {
   },
   ar: {
     workspace:"مساحة العمل", overview:"نظرة عامة", hostName:"اسم المضيف", platform:"النظام والمنصة", uptime:"مدة التشغيل",
-    services:"الخدمات", storage:"التخزين", processes:"العمليات", networkPage:"الشبكة", containers:"الحاويات",
+    services:"الخدمات", storage:"التخزين", processes:"العمليات", networkPage:"الشبكة", containers:"الحاويات", staticSite:"الموقع الثابت",
     terminal:"الطرفية", security:"الأمان", recovery:"الاستعادة", ai:"المساعد الذكي", settings:"الإعدادات",
     demoMode:"وضع المعاينة", awaiting:"في انتظار اتصال السيرفر", systemStandby:"النظام في وضع الاستعداد", systemLive:"مباشر",
     hostConnected:"متصل بالسيرفر", preview:"بيئة معاينة", previewText:"ستظهر المؤشرات الحقيقية عند اتصال خادم Linux. لا يتم عرض أرقام تجريبية.",
@@ -59,7 +59,7 @@ const translations = {
     serviceDescription:"إدارة خدمات جلسة systemd الخاصة بالمستخدم فقط، من غير صلاحيات Root.",
     linuxcoreOwned:"عمليات LinuxCore المُدارة", linuxcoreControlNote:"التحكم هنا يخص نسخة LinuxCore دي فقط. خدمات النظام مش بيتم لمسها.", systemdUnavailableDetail:"خدمات systemd للمستخدم غير متاحة هنا؛ تقدر تتابع عمليات LinuxCore بشكل منفصل.", startAll:"تشغيل LinuxCore", stopAll:"إيقاف LinuxCore", restartAll:"إعادة تشغيل LinuxCore", running:"تعمل", stopped:"متوقفة", identityMismatch:"تعذّر التحقق من هوية العملية", stalePid:"ملف PID قديم",
     containersDescription:"عرض وإدارة الحاويات من خلال Podman أو Docker بنمط Rootless فقط.",
-    staticSiteTitle:"موقع ثابت", staticSiteDescription:"شغّل موقعًا ثابتًا محليًا مع تعديل الصفحة وفحص الصحة والسجلات واستعادة الصفحة السابقة.", staticSitePort:"المنفذ المحلي", deploySite:"نشر الموقع", siteLive:"الموقع يعمل", siteStopped:"الموقع متوقف", siteUnavailable:"الموقع غير منشور", editSite:"صفحة HTML", saveSite:"حفظ الصفحة", rollbackSite:"استعادة الصفحة السابقة", siteLogs:"عرض السجلات", siteActionDone:"تم تنفيذ الإجراء", siteDeployDone:"تم نشر الموقع", siteSaveDone:"تم حفظ الصفحة. يمكن استعادة النسخة السابقة.", siteRollbackDone:"تمت استعادة الصفحة السابقة.", siteOnlyLoopback:"الموقع مربوط على 127.0.0.1 ويعمل بصلاحيات مستخدم Linux الحالي.", staticSiteLocalOnly:"نشر الموقع متاح من لوحة LinuxCore المحلية فقط.",
+    staticSiteTitle:"موقع ثابت", staticSiteDescription:"شغّل صفحة HTML واحدة بخادم Python القياسي، مستقلًا عن Podman وDocker ومربوطًا على loopback فقط.", staticSitePort:"المنفذ المحلي", deploySite:"نشر الموقع", siteLive:"الموقع يعمل", siteStopped:"الموقع متوقف", siteUnavailable:"الموقع غير منشور", editSite:"صفحة HTML", saveSite:"حفظ الصفحة", rollbackSite:"استعادة الصفحة السابقة", siteLogs:"عرض السجلات", siteActionDone:"تم تنفيذ الإجراء", siteDeployDone:"تم نشر الموقع", siteSaveDone:"تم حفظ الصفحة. يمكن استعادة النسخة السابقة.", siteRollbackDone:"تمت استعادة الصفحة السابقة.", siteOnlyLoopback:"الموقع مربوط على 127.0.0.1 ويعمل بصلاحيات مستخدم Linux الحالي.", staticSiteLocalOnly:"نشر الموقع متاح من لوحة LinuxCore المحلية فقط.",
     terminalDisabled:"تشغيل مجموعة محددة من أوامر التشخيص للقراءة فقط. تنفيذ أوامر Shell عشوائية غير متاح.",
     securityDescription:"حدود الأمان الحالية للمشروع.", recoveryDescription:"فحص LinuxCore وإعادة تشغيل خدماته المحلية فقط بشكل آمن.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
     noData:"لا توجد بيانات متاحة في البيئة الحالية.", unavailableNetwork:"عدادات الشبكة محجوبة بواسطة بيئة Linux الحالية.",
@@ -426,24 +426,28 @@ async function renderStaticSite(content, isArabic, requestId) {
       cache: "no-store", signal: AbortSignal.timeout(12000)
     });
   } catch (error) {
-    if (requestId === moduleRequestId && currentPage === "containers") moduleNotice(error.message || t("apiUnavailable"));
+    if (requestId === moduleRequestId && currentPage === "staticSite") moduleNotice(error.message || t("apiUnavailable"));
     return;
   }
-  if (requestId !== moduleRequestId || currentPage !== "containers") return;
+  if (requestId !== moduleRequestId || currentPage !== "staticSite") return;
   content.append(moduleNode("h3", "", t("staticSiteTitle")));
   const port = moduleNode("input", "outline-btn");
   port.type = "number"; port.min = "1024"; port.max = "65535";
-  port.value = String(site.host_port || 8081);
+  port.value = String(site.host_port || 18081);
   port.setAttribute("aria-label", t("staticSitePort"));
   content.append(moduleNode("label", "", t("staticSitePort")), port);
 
   if (!site.deployed) {
+    if (site.conflict) {
+      moduleNotice(site.reason || (isArabic ? "تعارض في ملفات حالة الموقع؛ راجعها قبل إعادة النشر." : "Static-site state conflict; review its files before deploying again."));
+      return;
+    }
     moduleNotice(t("siteUnavailable"));
     content.append(moduleActionButton(t("deploySite"), async (event) => {
       const button = event.currentTarget; button.disabled = true;
       try {
         await postJson(API_BASE + "/api/v1/apps/static-site/deploy", {host_port:Number(port.value)}, 100000);
-        toast(t("siteDeployDone")); renderModule("containers");
+        toast(t("siteDeployDone")); if (currentPage === "staticSite") renderModule("staticSite");
       } catch (error) { toast(error.message || t("apiUnavailable")); }
       finally { button.disabled = false; }
     }));
@@ -466,7 +470,7 @@ async function renderStaticSite(content, isArabic, requestId) {
       const button = event.currentTarget; button.disabled = true;
       try {
         await postJson(API_BASE + "/api/v1/apps/static-site/action", {action}, 35000);
-        toast(t("siteActionDone")); renderModule("containers");
+        toast(t("siteActionDone")); if (currentPage === "staticSite") renderModule("staticSite");
       } catch (error) { toast(error.message || t("apiUnavailable")); }
       finally { button.disabled = false; }
     })));
@@ -480,7 +484,7 @@ async function renderStaticSite(content, isArabic, requestId) {
   fetchJson(API_BASE + "/api/v1/apps/static-site/content", {
     cache:"no-store", signal:AbortSignal.timeout(12000)
   }).then((page) => {
-    if (requestId === moduleRequestId && currentPage === "containers" && editor.isConnected) editor.value = page.content || "";
+    if (requestId === moduleRequestId && currentPage === "staticSite" && editor.isConnected) editor.value = page.content || "";
   }).catch(() => {});
   const pageActions = moduleNode("div", "operation-actions");
   pageActions.append(moduleActionButton(t("saveSite"), async (event) => {
@@ -529,11 +533,11 @@ async function renderModule(page) {
 
   const titles = {
     services: t("services"), storage: t("storage"), processes: t("processes"),
-    network: t("networkPage"), containers: t("containers"), terminal: t("terminal"),
+    network: t("networkPage"), containers: t("containers"), staticSite: t("staticSite"), terminal: t("terminal"),
     security: t("security"), recovery: t("recovery"), settings: t("settings")
   };
   const descriptions = {
-    services: t("serviceDescription"), containers: t("containersDescription"),
+    services: t("serviceDescription"), containers: t("containersDescription"), staticSite: t("staticSiteDescription"),
     terminal: t("terminalDisabled"), security: t("securityDescription"),
     recovery: t("recoveryDescription"), settings: t("settingsDescription")
   };
@@ -659,9 +663,13 @@ async function renderModule(page) {
       return;
     }
 
-    if (page === "containers") {
+    if (page === "staticSite") {
       if (IS_LOCAL_HOST) await renderStaticSite(content, isArabic, requestId);
       else moduleNotice(t("staticSiteLocalOnly"));
+      return;
+    }
+
+    if (page === "containers") {
       if (requestId !== moduleRequestId || currentPage !== page) return;
       const data = await fetchJson(API_BASE + "/api/v1/containers", {
         cache: "no-store", signal: AbortSignal.timeout(12000)
