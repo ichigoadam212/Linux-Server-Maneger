@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import os
 import sys
 import tempfile
@@ -47,6 +48,16 @@ class FakeOpener:
 
 
 class LocalProxyTests(unittest.TestCase):
+    def test_request_logs_omit_paths_and_query_values(self):
+        handler = object.__new__(MODULE.LinuxCoreHandler)
+        handler.client_address = ("127.0.0.1", 8080)
+        handler.command = "GET"
+        output = io.StringIO()
+        with patch("sys.stderr", output):
+            handler.log_request(200)
+        self.assertEqual(output.getvalue(), "127.0.0.1 GET 200\n")
+        self.assertNotIn("secret", output.getvalue())
+
     def test_token_is_read_from_dotenv_without_executing_file(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
