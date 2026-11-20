@@ -135,6 +135,8 @@ SITE_PORT=18081
 curl --fail --show-error http://127.0.0.1:8080/api/v1/health
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/healthz"
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
+curl -sS -o /dev/null -w 'POST status: %{http_code}\\n' -X POST "http://127.0.0.1:$SITE_PORT/"
+curl --path-as-is -sS -o /dev/null -w 'Traversal status: %{http_code}\\n' "http://127.0.0.1:$SITE_PORT/../../etc/passwd"
 curl --fail --show-error -X PUT -H 'Content-Type: application/json' \
   --data '{"content":"<!doctype html><html><body><h1>Phone test</h1></body></html>"}' \
   http://127.0.0.1:8080/api/v1/apps/static-site/content
@@ -149,6 +151,11 @@ The edited page should contain `Phone test`; after rollback the original page sh
 ```sh
 curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"stop"}' \
   http://127.0.0.1:8080/api/v1/apps/static-site/action
+if curl --fail --silent --max-time 2 "http://127.0.0.1:$SITE_PORT/healthz"; then
+  echo "FAIL: site still responds after Stop"; exit 1
+else
+  echo "OK: site is stopped"
+fi
 curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"start"}' \
   http://127.0.0.1:8080/api/v1/apps/static-site/action
 curl --fail --show-error -X POST -H 'Content-Type: application/json' --data '{"action":"restart"}' \
@@ -194,7 +201,7 @@ for table, family in tables:
 PY
 ```
 
-Expected: API health, site health, and the page return HTTP 200; the health body is `linuxcore-site-ok`; the edited page is retrievable before rollback; Stop returns stopped and makes the health request fail; Start/Restart restore HTTP 200. The socket check shows the three expected ports reachable on loopback, and the TCP table shows only `127.0.0.1:8000`, `127.0.0.1:8080`, and `127.0.0.1:18081`. Logs show method/status but no request path or query. Report the branch/commit, Debian/Python/PRoot versions, HTTP status/output, and relevant error text; redact tokens and private data.
+Expected: API health, site health, and the page return HTTP 200; the health body is `linuxcore-site-ok`; POST returns 405; traversal returns 404; the edited page contains `Phone test` before rollback and the original page returns afterward; Stop returns stopped and makes the health request fail; Start/Restart restore HTTP 200. The socket check shows the three expected ports reachable on loopback, and the TCP table shows only `127.0.0.1:8000`, `127.0.0.1:8080`, and `127.0.0.1:18081`. Logs show method/status but no request path or query. Report the branch/commit, Debian/Python/PRoot versions, HTTP status/output, and relevant error text; redact tokens and private data.
 
 CI runs backend, proxy, frontend contract, shell/security and smoke checks on GitHub-hosted Linux; its integration job uses Debian 13 under PRoot. These do not execute on the Android phone. The phone check above remains pending until you run it on-device.
 ### Keep LinuxCore running in a Linux user session
