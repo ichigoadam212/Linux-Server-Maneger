@@ -221,7 +221,7 @@ def rollback_site():
     if not status.get("deployed"):
         raise HTTPException(status_code=404, detail="Deploy the LinuxCore static site before rolling it back.")
     mountpoint = _volume_path(executable, runtime_name, VOLUME_NAME)
-    backup = _paths()[2]
+    backup = _paths()[1]
     try:
         previous = backup.read_text(encoding="utf-8")
         current = (mountpoint / "index.html").read_text(encoding="utf-8")
