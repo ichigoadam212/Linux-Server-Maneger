@@ -23,6 +23,16 @@ To stop LinuxCore:
 bash scripts/stop.sh
 ```
 
+## Local Static Site deployment
+
+The **Static Site** dashboard page manages one editable HTML page using a separate Python standard-library HTTP server. It is independent of the Containers page and does not need Podman, Docker, root privileges, systemd, or additional Python packages beyond LinuxCore's backend dependencies. The default port is 18081.
+
+The server runs as the current Linux user and binds only to `127.0.0.1`. It serves `/`, `/index.html`, and `/healthz`; other paths return 404 and write methods return 405. Responses include a restrictive CSP, `nosniff`, no-store caching, and frame protections. HTML is bounded to 64 KiB and validated as UTF-8. The access log is capped and excludes request paths and query strings. State is kept in owner-only files under `.runtime/deployments`; page and backup writes are atomic and protected by a private recovery journal. The API checks process creation time and exact command identity before sending a termination signal.
+
+From the dashboard, use Deploy, edit/save, Roll back, and Start/Stop/Restart. The Python server is a separate process that can outlive the dashboard/API. Stop it in Static Site before stopping LinuxCore. After pulling code updates, stop any deployed site, then run `bash scripts/stop.sh` and `bash scripts/start.sh` to load the updated API routes. Start the site manually after reboot or a killed PRoot session; automatic startup is not provided. This feature serves no additional assets, dynamic applications, TLS, or external network interfaces. Keep secrets out of the HTML page.
+
+GitHub CI exercises this path in a Debian 13 (Trixie) root filesystem under PRoot. CI does not execute on the Android phone or verify the target kernel/PRoot combination. Run the target-device steps in README before calling the feature phone-tested.
+
 ## Remote API access boundary
 
 LinuxCore remains loopback-only by default. The local start script binds the API to `127.0.0.1` and serves the dashboard through `scripts/local-web.py` on `127.0.0.1:8080`. The local proxy accepts only fixed API paths, forwards requests to the fixed backend origin, and adds the optional bearer token server-side from `backend/.env`. The browser talks only to the same-origin proxy; it never receives the backend token.
@@ -125,12 +135,13 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 - Never add raw shell input, arbitrary file paths, root escalation, or system-wide service control to the API.
 - Service controls are limited to discovered `systemd --user` units.
 - Container controls are limited to discovered rootless Podman/rootless Docker containers.
+- Static-site controls manage only the fixed Python server process verified against LinuxCore's private PID metadata; they never signal a process with a different identity.
 - Keep `backend/.env` out of Git and restrict it to owner-only permissions.
 - AI requests leave the device when DeepSeek is configured. Only opt in to sending aggregate host context when needed; never send secrets.
 
 ## PRoot / Android limitations
 
-PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
+PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. The local static-site server uses Python and loopback sockets, so it does not depend on a container runtime. GitHub Actions validates a real deployment in a Debian 13 (Trixie) PRoot rootfs; this does not establish Android or phone-browser behavior. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
 
 ## Incident response
 
