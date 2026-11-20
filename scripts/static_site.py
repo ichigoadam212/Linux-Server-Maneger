@@ -68,6 +68,10 @@ def handler_for(site_dir: Path):
         sys_version = ""
         protocol_version = "HTTP/1.0"
 
+        def setup(self):
+            self.request.settimeout(5)
+            super().setup()
+
         def _respond(self, status: int, body: bytes, content_type: str):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
