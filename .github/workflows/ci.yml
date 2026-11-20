@@ -128,6 +128,7 @@ jobs:
           set -euo pipefail
           rootfs="$RUNNER_TEMP/debian-root"
           sudo debootstrap --variant=minbase --include=python3,python3-venv,python3-pip,ca-certificates trixie "$rootfs" http://deb.debian.org/debian
+          sudo mkdir -p "$rootfs/work"
           proot_args=(-r "$rootfs" -w / -b /proc -b /dev -b /etc/resolv.conf -b "$GITHUB_WORKSPACE:/work")
           proot "${proot_args[@]}" /usr/bin/python3 -m venv /tmp/linuxcore-venv
           proot "${proot_args[@]}" -w /work/backend /tmp/linuxcore-venv/bin/python -m pip install -r requirements-dev.txt
