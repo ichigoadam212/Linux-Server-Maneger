@@ -455,6 +455,11 @@ async function renderStaticSite(content, isArabic, requestId) {
   status.append(moduleNode("b", "", t("siteLive")),
     moduleNode("span", "", [site.status, site.health, site.url].filter(Boolean).join(" · ")));
   content.append(status);
+  if (site.url) {
+    const siteLink = moduleNode("a", "outline-btn", site.url);
+    siteLink.href = site.url; siteLink.target = "_blank"; siteLink.rel = "noopener noreferrer";
+    content.append(siteLink);
+  }
   const controls = moduleNode("div", "operation-actions");
   [["start",isArabic ? "تشغيل" : "Start"],["stop",isArabic ? "إيقاف" : "Stop"],["restart",isArabic ? "إعادة تشغيل" : "Restart"]]
     .forEach(([action,label]) => controls.append(moduleActionButton(label, async (event) => {
