@@ -21,7 +21,7 @@ def test_deploy_creates_loopback_only_site_and_persistent_volume(monkeypatch, tm
     state_dir.mkdir()
     backup = state_dir / "static-site.previous.html"
     monkeypatch.setattr(deployments, "_runtime", lambda: ("podman", "/usr/bin/podman"))
-    monkeypatch.setattr(deployments, "_paths", lambda: (tmp_path, state_dir, backup))
+    monkeypatch.setattr(deployments, "_paths", lambda: (state_dir, backup))
     monkeypatch.setattr(deployments, "_site_status", lambda *args: {"deployed": False})
     calls = []
 
