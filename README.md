@@ -25,6 +25,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - Graceful handling when the Linux environment restricts /proc network counters.
 - **Services:** LinuxCore's own API and dashboard processes are discovered through checkout-owned PID files and verified process identities; the page offers lifecycle controls that call only this checkout's start/stop scripts. Separately, start/stop/restart controls remain limited to units discovered by an available unprivileged systemd --user manager. No system-wide or Android service control.
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
+- **Static site deployment:** Deploy one fixed Nginx app through rootless Podman or rootless Docker. LinuxCore creates a persistent named volume, binds the site to `127.0.0.1`, checks container health, shows the last 200 log lines, and supports editing the page with one-step rollback. The image is fixed; arbitrary images and shell commands are not accepted. The app is managed from the Containers page.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
 - Optional DeepSeek chat with explicit opt-in for aggregate host context.
@@ -128,6 +129,10 @@ The scripts can be invoked with bash; executable file permissions are not requir
 - GET /api/v1/managed-services
 - POST /api/v1/managed-services/action
 - GET /api/v1/containers
+- GET /api/v1/apps/static-site and /content
+- POST /api/v1/apps/static-site/deploy, /action, /rollback
+- PUT /api/v1/apps/static-site/content
+- GET /api/v1/apps/static-site/logs
 - POST /api/v1/containers/{container_id}/action
 - GET /api/v1/terminal/commands
 - POST /api/v1/terminal/run
