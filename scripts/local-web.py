@@ -29,6 +29,9 @@ API_RULES = [
     (re.compile(r"^/api/v1/managed-services/action$"), "POST"),
     (re.compile(r"^/api/v1/containers$"), "GET"),
     (re.compile(r"^/api/v1/containers/[A-Za-z0-9_.-]+/action$"), "POST"),
+    (re.compile(r"^/api/v1/apps/static-site(/content|/logs)?$"), "GET"),
+    (re.compile(r"^/api/v1/apps/static-site/(deploy|rollback|action)$"), "POST"),
+    (re.compile(r"^/api/v1/apps/static-site/content$"), "PUT"),
     (re.compile(r"^/api/v1/terminal/commands$"), "GET"),
     (re.compile(r"^/api/v1/terminal/run$"), "POST"),
     (re.compile(r"^/api/v1/recovery/check$"), "GET"),
@@ -63,15 +66,15 @@ def forward_api_request(method: str, path: str, body: bytes, content_type: str, 
         return 404, "application/json", b'{"detail":"API route or method is not allowed."}'
     if len(body) > MAX_REQUEST_BYTES:
         return 413, "application/json", b'{"detail":"Request body too large."}'
-    if method == "POST" and body and not re.match(r"^application/json(?:;|$)", content_type, re.I):
+    if method in {"POST", "PUT"} and body and not re.match(r"^application/json(?:;|$)", content_type, re.I):
         return 415, "application/json", b'{"detail":"Only JSON request bodies are accepted."}'
 
     headers = {"Accept": "application/json"}
     if token:
         headers["Authorization"] = "Bearer " + token
-    if method == "POST":
+    if method in {"POST", "PUT"}:
         headers["Content-Type"] = "application/json"
-    request = Request(API_ORIGIN + path, data=(body if method == "POST" and body else None),
+    request = Request(API_ORIGIN + path, data=(body if method in {"POST", "PUT"} and body else None),
                       headers=headers, method=method)
     try:
         with OPENER.open(request, timeout=55) as response:
@@ -100,6 +103,9 @@ class LinuxCoreHandler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        self._proxy_api()
+
+    def do_PUT(self):
         self._proxy_api()
 
     def _proxy_api(self):
