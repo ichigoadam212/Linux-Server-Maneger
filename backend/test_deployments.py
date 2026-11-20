@@ -1,4 +1,5 @@
 import http.client
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,11 @@ from main import app
 client = TestClient(app)
 API = "/api/v1/apps/static-site"
 SERVER_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "static_site.py"
+STATIC_SITE_SPEC = importlib.util.spec_from_file_location("linuxcore_static_site", SERVER_SCRIPT)
+if STATIC_SITE_SPEC is None or STATIC_SITE_SPEC.loader is None:
+    raise RuntimeError("could not load the static-site server module")
+static_site = importlib.util.module_from_spec(STATIC_SITE_SPEC)
+STATIC_SITE_SPEC.loader.exec_module(static_site)
 
 
 def isolated_paths(tmp_path, monkeypatch):
@@ -58,6 +64,13 @@ def request_site(port, method="GET", path="/"):
         connection.close()
 
 
+
+def test_static_site_access_log_never_exceeds_limit_at_boundary(tmp_path):
+    log_path = tmp_path / "static-site.log"
+    log_path.write_bytes(b"x" * (static_site.MAX_LOG_BYTES - 1))
+    static_site.append_access_log(log_path, b"127.0.0.1 GET 200\n")
+    assert log_path.stat().st_size <= static_site.MAX_LOG_BYTES
+    assert log_path.read_bytes() == b"127.0.0.1 GET 200\n"
 def test_deploy_validates_port_and_content_size():
     bad_port = client.post(API + "/deploy", json={"host_port": 80})
     assert bad_port.status_code == 422
