@@ -53,7 +53,7 @@ def test_site_content_update_and_rollback(monkeypatch, tmp_path):
     backup = state_dir / "static-site.previous.html"
     state_dir.mkdir()
     monkeypatch.setattr(deployments, "_runtime", lambda: ("podman", "/usr/bin/podman"))
-    monkeypatch.setattr(deployments, "_paths", lambda: (tmp_path, state_dir, backup))
+    monkeypatch.setattr(deployments, "_paths", lambda: (state_dir, backup))
     monkeypatch.setattr(deployments, "_site_status", lambda *args: {"deployed": True, "url": "http://127.0.0.1:8081"})
     monkeypatch.setattr(deployments, "_run", lambda argv, timeout=20: {
         "returncode": 0,
