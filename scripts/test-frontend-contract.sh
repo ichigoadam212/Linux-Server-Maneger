@@ -16,8 +16,16 @@ require_text "$JS" 'if (!IS_LOCAL_HOST)' "hosted login gate is not restricted to
 require_absent "$JS" 'http://127.0.0.1:8000' "browser JavaScript still addresses the backend directly"
 require_text "$JS" 'if (page === "staticSite")' "Static Site is not rendered independently"
 require_text "$JS" 'port.value = String(site.host_port || 18081)' "Static Site device-test port is not the default"
-require_absent "$JS" 'if (page === "containers") {
-      if (IS_LOCAL_HOST) await renderStaticSite' "Static Site is coupled to the Containers page"
+python3 - "$JS" <<'PY'
+from pathlib import Path
+import sys
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+start = source.index('if (page === "containers") {')
+end = source.find('\n    if (page === "', start + 1)
+container_code = source[start:end if end >= 0 else len(source)]
+if "renderStaticSite" in container_code:
+    raise SystemExit("FAIL: Static Site is coupled to the Containers page")
+PY
 require_text "$JS" 'async function loadOverviewPanels()' "live overview loader is missing"
 require_text "$JS" '/api/v1/services' "overview does not query user services"
 require_text "$JS" '/api/v1/diagnostics' "overview does not query live diagnostics"
