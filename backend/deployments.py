@@ -204,7 +204,7 @@ def update_site_content(request: ContentRequest):
         raise HTTPException(status_code=404, detail="Deploy the LinuxCore static site before editing it.")
     mountpoint = _volume_path(executable, runtime_name, VOLUME_NAME)
     index_path = mountpoint / "index.html"
-    backup = _paths()[2]
+    backup = _paths()[1]
     try:
         old_content = index_path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
