@@ -135,8 +135,8 @@ SITE_PORT=18081
 curl --fail --show-error http://127.0.0.1:8080/api/v1/health
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/healthz"
 curl --fail --show-error "http://127.0.0.1:$SITE_PORT/"
-curl -sS -o /dev/null -w 'POST status: %{http_code}\\n' -X POST "http://127.0.0.1:$SITE_PORT/"
-curl --path-as-is -sS -o /dev/null -w 'Traversal status: %{http_code}\\n' "http://127.0.0.1:$SITE_PORT/../../etc/passwd"
+curl -sS -o /dev/null -w 'POST status: %{http_code}\n' -X POST "http://127.0.0.1:$SITE_PORT/"
+curl --path-as-is -sS -o /dev/null -w 'Traversal status: %{http_code}\n' "http://127.0.0.1:$SITE_PORT/../../etc/passwd"
 curl --fail --show-error -X PUT -H 'Content-Type: application/json' \
   --data '{"content":"<!doctype html><html><body><h1>Phone test</h1></body></html>"}' \
   http://127.0.0.1:8080/api/v1/apps/static-site/content
