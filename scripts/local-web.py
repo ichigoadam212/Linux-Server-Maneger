@@ -153,9 +153,12 @@ class LinuxCoreHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, fmt, *args):
-        # Keep request paths/statuses visible but never log headers or secrets.
-        sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
+    def log_request(self, code="-", size="-"):
+        # Request targets may contain sensitive query values; log no URL or headers.
+        sys.stderr.write("%s %s %s\\n" % (self.client_address[0], self.command, code))
+
+    def log_message(self, _fmt, *_args):
+        return
 
 
 def main():
