@@ -7,12 +7,17 @@ require_text() { grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_absent() { ! grep -Fq -- "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; }
 require_text "$HTML" 'id="overviewServices"' "overview service panel is missing"
 require_text "$HTML" 'id="overviewCapabilities"' "overview capability panel is missing"
+require_text "$HTML" 'data-page="staticSite"' "Static Site has no dedicated dashboard page"
 require_text "$HTML" 'http-equiv="Content-Security-Policy"' "dashboard Content Security Policy is missing"
 require_text "$HTML" "connect-src 'self'" "dashboard same-origin API connection policy is missing"
 require_text "$JS" 'const IS_LOCAL_HOST = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname)' "local-host authentication mode is missing"
 require_text "$JS" 'const API_BASE = "";' "dashboard does not use same-origin API requests"
 require_text "$JS" 'if (!IS_LOCAL_HOST)' "hosted login gate is not restricted to remote dashboard mode"
 require_absent "$JS" 'http://127.0.0.1:8000' "browser JavaScript still addresses the backend directly"
+require_text "$JS" 'if (page === "staticSite")' "Static Site is not rendered independently"
+require_text "$JS" 'port.value = String(site.host_port || 18081)' "Static Site device-test port is not the default"
+require_absent "$JS" 'if (page === "containers") {
+      if (IS_LOCAL_HOST) await renderStaticSite' "Static Site is coupled to the Containers page"
 require_text "$JS" 'async function loadOverviewPanels()' "live overview loader is missing"
 require_text "$JS" '/api/v1/services' "overview does not query user services"
 require_text "$JS" '/api/v1/diagnostics' "overview does not query live diagnostics"
