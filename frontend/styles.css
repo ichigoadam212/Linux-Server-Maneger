@@ -63,3 +63,7 @@ button,.nav-item,.lang-btn,.outline-btn{touch-action:manipulation}
   .ai-messages{min-height:190px;max-height:290px}
   .ai-chat-head{flex-direction:column}
 }
+
+.module-content textarea.terminal-output{display:block;box-sizing:border-box;width:100%;resize:vertical;margin:8px 0 12px}
+.module-content input[type=number]{box-sizing:border-box;max-width:180px;margin:8px 0 12px;padding:9px;border:1px solid var(--line);border-radius:7px;background:#070d16;color:#e8f0fb;font:12px 'IBM Plex Mono',monospace}
+.module-content>label{display:block;margin:8px 0;color:var(--muted);font-size:11px}
