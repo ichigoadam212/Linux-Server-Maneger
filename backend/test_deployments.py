@@ -3,7 +3,6 @@ import json
 import os
 from pathlib import Path
 import socket
-import time
 
 import psutil
 from fastapi.testclient import TestClient
@@ -48,9 +47,9 @@ def request_site(port, method="GET", path="/"):
     try:
         connection.request(method, path, headers={"Host": "127.0.0.1"})
         response = connection.getresponse()
+        peer = connection.sock.getsockname()[0] if connection.sock else None
         body = response.read()
         headers = dict(response.getheaders())
-        peer = connection.sock.getsockname()[0] if connection.sock else None
         return response.status, headers, body, peer
     finally:
         connection.close()
@@ -79,52 +78,53 @@ def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatc
     assert status["url"] == f"http://127.0.0.1:{port}"
     assert status["pid"] != os.getpid()
 
-    code, headers, body, peer = request_site(port)
-    assert code == 200
-    assert peer == "127.0.0.1"
-    assert b"Your site is running" in body
-    assert "default-src 'self'" in headers["Content-Security-Policy"]
-    assert headers["X-Content-Type-Options"] == "nosniff"
-    assert headers["Cache-Control"] == "no-store"
-    assert headers["X-Frame-Options"] == "DENY"
-
-    code, _, body, _ = request_site(port, path="/%2e%2e/README.md")
-    assert code == 404
-    assert b"Not found" in body
-    assert request_site(port, method="POST")[0] == 405
-    assert request_site(port, method="PUT")[0] == 405
-    assert request_site(port, method="DELETE")[0] == 405
-    assert request_site(port, method="OPTIONS")[0] == 405
-    request_site(port, path="/?token=must-not-be-logged")
-
-    saved = client.put(API + "/content", json={"content": "<h1>Updated</h1>"})
-    assert saved.status_code == 200, saved.text
-    assert request_site(port)[2] == b"<h1>Updated</h1>"
-    rolled_back = client.post(API + "/rollback")
-    assert rolled_back.status_code == 200, rolled_back.text
-    assert b"Your site is running" in request_site(port)[2]
-    assert paths["backup"].read_text(encoding="utf-8") == "<h1>Updated</h1>"
-
-    logs = client.get(API + "/logs")
-    assert logs.status_code == 200, logs.text
-    assert "GET 200" in logs.json()["lines"]
-    assert "must-not-be-logged" not in logs.json()["lines"]
-
-    stopped = client.post(API + "/action", json={"action": "stop"})
-    assert stopped.status_code == 200, stopped.text
-    assert stopped.json()["status"] == "stopped"
-    assert stopped.json()["deployed"] is True
     try:
-        request_site(port)
-        raise AssertionError("site still accepts connections after stop")
-    except OSError:
-        pass
+        code, headers, body, peer = request_site(port)
+        assert code == 200
+        assert peer == "127.0.0.1"
+        assert b"Your site is running" in body
+        assert "default-src 'self'" in headers["Content-Security-Policy"]
+        assert headers["X-Content-Type-Options"] == "nosniff"
+        assert headers["Cache-Control"] == "no-store"
+        assert headers["X-Frame-Options"] == "DENY"
 
-    restarted = client.post(API + "/action", json={"action": "restart"})
-    assert restarted.status_code == 200, restarted.text
-    assert restarted.json()["status"] == "running"
-    assert b"Your site is running" in request_site(port)[2]
-    assert client.post(API + "/action", json={"action": "stop"}).status_code == 200
+        code, _, body, _ = request_site(port, path="/%2e%2e/README.md")
+        assert code == 404
+        assert b"Not found" in body
+        for method in ("POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE", "CONNECT"):
+            assert request_site(port, method=method)[0] == 405
+        request_site(port, path="/?token=must-not-be-logged")
+
+        saved = client.put(API + "/content", json={"content": "<h1>Updated</h1>"})
+        assert saved.status_code == 200, saved.text
+        assert request_site(port)[2] == b"<h1>Updated</h1>"
+        rolled_back = client.post(API + "/rollback")
+        assert rolled_back.status_code == 200, rolled_back.text
+        assert b"Your site is running" in request_site(port)[2]
+        assert paths["backup"].read_text(encoding="utf-8") == "<h1>Updated</h1>"
+
+        logs = client.get(API + "/logs")
+        assert logs.status_code == 200, logs.text
+        assert "GET 200" in logs.json()["lines"]
+        assert "must-not-be-logged" not in logs.json()["lines"]
+
+        stopped = client.post(API + "/action", json={"action": "stop"})
+        assert stopped.status_code == 200, stopped.text
+        assert stopped.json()["status"] == "stopped"
+        assert stopped.json()["deployed"] is True
+        try:
+            request_site(port)
+            raise AssertionError("site still accepts connections after stop")
+        except OSError:
+            pass
+
+        restarted = client.post(API + "/action", json={"action": "restart"})
+        assert restarted.status_code == 200, restarted.text
+        assert restarted.json()["status"] == "running"
+        assert b"Your site is running" in request_site(port)[2]
+    finally:
+        cleanup = client.post(API + "/action", json={"action": "stop"})
+        assert cleanup.status_code in {200, 404}, cleanup.text
 
 
 def test_stop_never_signals_a_different_process(monkeypatch, tmp_path):
