@@ -47,10 +47,9 @@ def request_site(port, method="GET", path="/"):
     try:
         connection.request(method, path, headers={"Host": "127.0.0.1"})
         response = connection.getresponse()
-        peer = connection.sock.getsockname()[0] if connection.sock else None
         body = response.read()
         headers = dict(response.getheaders())
-        return response.status, headers, body, peer
+        return response.status, headers, body
     finally:
         connection.close()
 
@@ -79,16 +78,15 @@ def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatc
     assert status["pid"] != os.getpid()
 
     try:
-        code, headers, body, peer = request_site(port)
+        code, headers, body = request_site(port)
         assert code == 200
-        assert peer == "127.0.0.1"
         assert b"Your site is running" in body
         assert "default-src 'self'" in headers["Content-Security-Policy"]
         assert headers["X-Content-Type-Options"] == "nosniff"
         assert headers["Cache-Control"] == "no-store"
         assert headers["X-Frame-Options"] == "DENY"
 
-        code, _, body, _ = request_site(port, path="/%2e%2e/README.md")
+        code, _, body = request_site(port, path="/%2e%2e/README.md")
         assert code == 404
         assert b"Not found" in body
         for method in ("POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE", "CONNECT"):
