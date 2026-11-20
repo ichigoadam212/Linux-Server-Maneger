@@ -146,6 +146,33 @@ def test_real_loopback_deployment_content_rollback_logs_and_lifecycle(monkeypatc
         assert cleanup.status_code in {200, 404}, cleanup.text
 
 
+
+def test_crashed_site_with_stale_pid_metadata_can_restart(monkeypatch, tmp_path):
+    paths = isolated_paths(tmp_path, monkeypatch)
+    port = unused_loopback_port()
+    deployed = client.post(API + "/deploy", json={"host_port": port})
+    assert deployed.status_code == 200, deployed.text
+    original_pid = deployed.json()["pid"]
+
+    try:
+        process = psutil.Process(original_pid)
+        process.terminate()
+        process.wait(timeout=5)
+
+        stale = client.get(API)
+        assert stale.status_code == 200
+        assert stale.json()["deployed"] is True
+        assert stale.json()["status"] == "stopped"
+
+        restarted = client.post(API + "/action", json={"action": "start"})
+        assert restarted.status_code == 200, restarted.text
+        assert restarted.json()["status"] == "running"
+        assert restarted.json()["health"] == "healthy"
+        assert request_site(port)[0] == 200
+    finally:
+        stopped = client.post(API + "/action", json={"action": "stop"})
+        assert stopped.status_code == 200, stopped.text
+
 def test_port_conflict_cleans_failed_deploy_for_retry(monkeypatch, tmp_path):
     paths = isolated_paths(tmp_path, monkeypatch)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
