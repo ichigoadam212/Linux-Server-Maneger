@@ -25,11 +25,11 @@ bash scripts/stop.sh
 
 ## Local static-site deployment
 
-The Containers page can deploy one simple static website with the supported rootless Podman or rootless Docker runtime. LinuxCore uses a fixed `nginx:alpine` image; it does not accept arbitrary images, launch shell commands, or request elevated privileges. The site content is stored in the named `linuxcore-static-site-data` volume. The container publishes its port only on `127.0.0.1`; it is not reachable from other devices by default.
+The Containers page can run one editable static HTML page using Python's standard-library HTTP server. It does not need Podman, Docker, root privileges, systemd, or package installation beyond the Python already used by LinuxCore, so it works in Debian/PRoot environments.
 
-The page supports start, stop, restart, editing the HTML entry page, viewing the last 200 log lines, and a one-step rollback of the last page edit. The volume survives container restarts and container replacement as long as the rootless container runtime keeps its data. This feature does not make PRoot/Android background execution persistent, serve dynamic applications, configure TLS, or expose a site to the network. Keep secrets out of site HTML.
+The server binds only to `127.0.0.1` and serves `/`, `/index.html`, and `/healthz`. Other paths return 404 and write methods return 405. Responses include a restrictive Content Security Policy, `nosniff`, no-store caching, and frame protections. Page content is limited to 64 KiB; the access log is capped and excludes request paths and query strings. LinuxCore stores the page and state in owner-only files under `.runtime/deployments`, updates files atomically, and verifies process identity and creation time before sending stop signals.
 
-The API is under `/api/v1/apps/static-site`. Deployment is available only when a non-root LinuxCore process can reach a rootless Podman or rootless Docker runtime. If the runtime is absent or rootful, the API reports that deployment is unavailable.
+The dashboard supports start, stop, restart, editing the HTML entry page, viewing the last 200 log lines, and one-step rollback of the last page edit. This is a single-page static host; it does not upload assets, run dynamic applications, configure TLS, or expose the site to other devices. The background process ends when the Linux session or device is stopped; start it again from the dashboard after that. Keep secrets out of site HTML.
 
 ## Remote API access boundary
 
@@ -133,12 +133,13 @@ Backups are stored in `.runtime/backups` and should be treated as sensitive beca
 - Never add raw shell input, arbitrary file paths, root escalation, or system-wide service control to the API.
 - Service controls are limited to discovered `systemd --user` units.
 - Container controls are limited to discovered rootless Podman/rootless Docker containers.
+- Static-site controls manage only the fixed Python server process verified against LinuxCore's private PID metadata; they never signal a process with a different identity.
 - Keep `backend/.env` out of Git and restrict it to owner-only permissions.
 - AI requests leave the device when DeepSeek is configured. Only opt in to sending aggregate host context when needed; never send secrets.
 
 ## PRoot / Android limitations
 
-PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
+PRoot may not provide systemd user sessions, rootless container runtimes, full network counters, stable background execution, or accurate host-wide metrics. The local static-site server uses Python and loopback sockets, so it does not depend on a container runtime. LinuxCore reports unsupported capabilities as unavailable. It cannot guarantee operation after Android suspends or kills the Linux app.
 
 ## Incident response
 
