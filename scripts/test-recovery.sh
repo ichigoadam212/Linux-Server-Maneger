@@ -131,4 +131,42 @@ assert_status 1 "$RUN_STATUS" "missing-file preflight"
 assert_content "$FIXTURE/backend/.env" "TOKEN=original-value" "preflight failure"
 [[ ! -f "$FIXTURE/.test-calls" ]] || fail "lifecycle scripts ran despite failed preflight"
 
-printf '%s\n' 'Recovery rollback tests passed (5 isolated scenarios).'
+# 6. A symlinked runtime directory is rejected before chmod or backup creation.
+new_fixture "runtime-symlink"
+OUTSIDE="$TEST_ROOT/outside-runtime"
+mkdir -p "$OUTSIDE"
+chmod 755 "$OUTSIDE"
+ln -s "$OUTSIDE" "$FIXTURE/.runtime"
+run_recovery "$FIXTURE" 0 0 0 0 0
+assert_status 1 "$RUN_STATUS" "runtime symlink preflight"
+assert_mode "$OUTSIDE" 755 "external runtime target"
+[[ ! -e "$OUTSIDE/backups" ]] || fail "runtime symlink created an external backup directory"
+[[ ! -f "$FIXTURE/.test-calls" ]] || fail "lifecycle scripts ran with a symlinked runtime directory"
+
+# 7. A symlinked backup directory is rejected without changing its target.
+new_fixture "backup-symlink"
+mkdir -p "$FIXTURE/.runtime"
+OUTSIDE="$TEST_ROOT/outside-backups"
+mkdir -p "$OUTSIDE"
+chmod 755 "$OUTSIDE"
+ln -s "$OUTSIDE" "$FIXTURE/.runtime/backups"
+run_recovery "$FIXTURE" 0 0 0 0 0
+assert_status 1 "$RUN_STATUS" "backup symlink preflight"
+assert_mode "$OUTSIDE" 755 "external backup target"
+[[ -z "$(find "$OUTSIDE" -mindepth 1 -maxdepth 1 -print -quit)" ]] || fail "backup symlink wrote outside the repository"
+[[ ! -f "$FIXTURE/.test-calls" ]] || fail "lifecycle scripts ran with a symlinked backup directory"
+
+# 8. A symlinked environment file is rejected without reading or changing its target.
+new_fixture "env-symlink"
+OUTSIDE_ENV="$TEST_ROOT/external.env"
+printf 'TOKEN=external-value\n' > "$OUTSIDE_ENV"
+chmod 644 "$OUTSIDE_ENV"
+ln -s "$OUTSIDE_ENV" "$FIXTURE/backend/.env"
+run_recovery "$FIXTURE" 0 0 0 0 0
+assert_status 1 "$RUN_STATUS" "environment symlink preflight"
+assert_content "$OUTSIDE_ENV" "TOKEN=external-value" "external environment target"
+assert_mode "$OUTSIDE_ENV" 644 "external environment target"
+[[ -L "$FIXTURE/backend/.env" ]] || fail "environment symlink was removed or replaced"
+[[ ! -e "$FIXTURE/.runtime" ]] || fail "runtime state was created before environment preflight"
+
+printf '%s\n' 'Recovery rollback tests passed (8 isolated scenarios).'
