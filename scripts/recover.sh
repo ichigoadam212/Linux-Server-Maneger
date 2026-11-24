@@ -9,7 +9,7 @@ BACKEND_DIR="$ROOT/backend"
 umask 077
 
 preflight_error() {
-  printf 'Recovery refused: %s\\n' "$1" >&2
+  printf 'Recovery refused: %s\n' "$1" >&2
   exit 1
 }
 
