@@ -38,7 +38,7 @@ new_fixture() {
   cat > "$FIXTURE/scripts/start.sh" <<'START'
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 printf 'start\n' >> "$ROOT/.test-calls"
 if [[ "${TEST_MUTATE_START:-0}" == "1" ]]; then
   printf 'changed-by-start=1\n' > "$ROOT/backend/.env"
@@ -46,13 +46,21 @@ fi
 if [[ "${TEST_CREATE_ENV:-0}" == "1" ]]; then
   printf 'created-during-start=1\n' > "$ROOT/backend/.env"
 fi
+if [[ "${TEST_SWAP_BACKUPS:-0}" == "1" ]]; then
+  mv -- "$ROOT/.runtime/backups" "$ROOT/.runtime/backups.original"
+  ln -s -- "$TEST_OUTSIDE_BACKUPS" "$ROOT/.runtime/backups"
+fi
+if [[ "${TEST_SWAP_ENV:-0}" == "1" ]]; then
+  rm -f -- "$ROOT/backend/.env"
+  ln -s -- "$TEST_OUTSIDE_ENV_DIR" "$ROOT/backend/.env"
+fi
 exit "${TEST_START_EXIT:-0}"
 START
 
   cat > "$FIXTURE/scripts/status.sh" <<'STATUS'
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 printf 'status\n' >> "$ROOT/.test-calls"
 if [[ "${TEST_MUTATE_STATUS:-0}" == "1" ]]; then
   printf 'changed-by-status=1\n' > "$ROOT/backend/.env"
@@ -64,12 +72,18 @@ STATUS
 run_recovery() {
   local root="$1" start_exit="$2" status_exit="$3"
   local mutate_start="$4" mutate_status="$5" create_env="$6"
+  local swap_backups="${7:-0}" outside_backups="${8:-}"
+  local swap_env="${9:-0}" outside_env_dir="${10:-}"
   if env \
     TEST_START_EXIT="$start_exit" \
     TEST_STATUS_EXIT="$status_exit" \
     TEST_MUTATE_START="$mutate_start" \
     TEST_MUTATE_STATUS="$mutate_status" \
     TEST_CREATE_ENV="$create_env" \
+    TEST_SWAP_BACKUPS="$swap_backups" \
+    TEST_OUTSIDE_BACKUPS="$outside_backups" \
+    TEST_SWAP_ENV="$swap_env" \
+    TEST_OUTSIDE_ENV_DIR="$outside_env_dir" \
     bash "$root/scripts/recover.sh" > "$root/output.log" 2>&1; then
     RUN_STATUS=0
   else
@@ -131,7 +145,7 @@ assert_status 1 "$RUN_STATUS" "missing-file preflight"
 assert_content "$FIXTURE/backend/.env" "TOKEN=original-value" "preflight failure"
 [[ ! -f "$FIXTURE/.test-calls" ]] || fail "lifecycle scripts ran despite failed preflight"
 
-# 6. A symlinked runtime directory is rejected before chmod or backup creation.
+# 6. A symlinked runtime directory is rejected before any external path is changed.
 new_fixture "runtime-symlink"
 OUTSIDE="$TEST_ROOT/outside-runtime"
 mkdir -p "$OUTSIDE"
@@ -145,7 +159,7 @@ assert_mode "$OUTSIDE" 755 "external runtime target"
 
 # 7. A symlinked backup directory is rejected without changing its target.
 new_fixture "backup-symlink"
-mkdir -p "$FIXTURE/.runtime"
+mkdir -m 700 "$FIXTURE/.runtime"
 OUTSIDE="$TEST_ROOT/outside-backups"
 mkdir -p "$OUTSIDE"
 chmod 755 "$OUTSIDE"
@@ -169,4 +183,29 @@ assert_mode "$OUTSIDE_ENV" 644 "external environment target"
 [[ -L "$FIXTURE/backend/.env" ]] || fail "environment symlink was removed or replaced"
 [[ ! -e "$FIXTURE/.runtime" ]] || fail "runtime state was created before environment preflight"
 
-printf '%s\n' 'Recovery rollback tests passed (8 isolated scenarios).'
+# 9. Replacing the backup path during startup cannot redirect chmod or rollback reads.
+new_fixture "backup-path-swap"
+printf 'TOKEN=original-value\n' > "$FIXTURE/backend/.env"
+OUTSIDE_BACKUPS="$TEST_ROOT/outside-backups-race"
+mkdir -m 700 "$OUTSIDE_BACKUPS"
+run_recovery "$FIXTURE" 0 0 0 0 0 1 "$OUTSIDE_BACKUPS"
+assert_status 1 "$RUN_STATUS" "backup path replacement"
+assert_content "$FIXTURE/backend/.env" "TOKEN=original-value" "backup path replacement rollback"
+[[ -L "$FIXTURE/.runtime/backups" ]] || fail "backup path replacement fixture did not install its symlink"
+[[ -z "$(find "$OUTSIDE_BACKUPS" -mindepth 1 -maxdepth 1 -print -quit)" ]] || fail "backup path replacement wrote outside the repository"
+[[ -n "$(find "$FIXTURE/.runtime/backups.original" -maxdepth 1 -type f -name '*.bak' -print -quit)" ]] || fail "pinned backup was not retained in the original directory"
+[[ "$(cat "$FIXTURE/.test-calls")" == "start" ]] || fail "status ran after backup path identity changed"
+
+# 10. Rollback replaces a .env symlink-to-directory instead of moving the secret into it.
+new_fixture "env-directory-symlink"
+printf 'TOKEN=original-value\n' > "$FIXTURE/backend/.env"
+OUTSIDE_ENV_DIR="$TEST_ROOT/outside-env-directory"
+mkdir -m 700 "$OUTSIDE_ENV_DIR"
+run_recovery "$FIXTURE" 23 0 0 0 0 0 "" 1 "$OUTSIDE_ENV_DIR"
+assert_status 23 "$RUN_STATUS" "environment symlink-to-directory rollback"
+assert_content "$FIXTURE/backend/.env" "TOKEN=original-value" "environment symlink-to-directory rollback"
+assert_mode "$FIXTURE/backend/.env" 600 "environment symlink-to-directory restored file"
+[[ ! -L "$FIXTURE/backend/.env" ]] || fail "rollback left the environment symlink in place"
+[[ -z "$(find "$OUTSIDE_ENV_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]] || fail "rollback moved secret material into the external directory"
+
+printf '%s\n' 'Recovery rollback tests passed (10 isolated scenarios).'
