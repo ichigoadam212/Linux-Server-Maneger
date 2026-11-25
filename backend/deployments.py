@@ -5,6 +5,7 @@ import base64
 import binascii
 import http.client
 import json
+import math
 import os
 from pathlib import Path
 import stat
@@ -218,6 +219,7 @@ def _read_port(paths) -> int | None:
     return port
 
 
+
 def _read_process_metadata(paths):
     try:
         value = json.loads(_read_text(paths["pid"], 2048))
@@ -225,14 +227,19 @@ def _read_process_metadata(paths):
         created = value["created"]
         if isinstance(pid, bool) or not isinstance(pid, int) or pid < 2:
             raise ValueError
-        if isinstance(created, bool) or not isinstance(created, (float, int)) or created <= 0:
+        if isinstance(created, bool) or not isinstance(created, (float, int)):
             raise ValueError
-        return {"pid": pid, "created": float(created)}
+        try:
+            created_value = float(created)
+        except OverflowError as exc:
+            raise ValueError from exc
+        if not math.isfinite(created_value) or created_value <= 0:
+            raise ValueError
+        return {"pid": pid, "created": created_value}
     except FileNotFoundError:
         return None
-    except (OSError, UnicodeError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError, OverflowError, json.JSONDecodeError):
         return None
-
 
 def _same_process(metadata, port: int, site_dir: Path):
     if not metadata:

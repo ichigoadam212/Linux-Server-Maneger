@@ -262,3 +262,31 @@ def test_site_server_rejects_symlink_page(monkeypatch, tmp_path):
     assert status.status_code == 200
     assert status.json()["deployed"] is False
     assert status.json()["conflict"] is True
+
+
+def test_read_process_metadata_rejects_non_finite_and_overflow_values(tmp_path):
+    metadata_path = tmp_path / "pid.json"
+    invalid_values = (
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        10**400,
+    )
+    for created in invalid_values:
+        metadata_path.write_text(
+            json.dumps({"pid": 123, "created": created}),
+            encoding="ascii",
+        )
+        assert deployments._read_process_metadata({"pid": metadata_path}) is None
+
+
+def test_read_process_metadata_accepts_finite_positive_creation_time(tmp_path):
+    metadata_path = tmp_path / "pid.json"
+    metadata_path.write_text(
+        json.dumps({"pid": 123, "created": 123.5}),
+        encoding="ascii",
+    )
+    assert deployments._read_process_metadata({"pid": metadata_path}) == {
+        "pid": 123,
+        "created": 123.5,
+    }
