@@ -35,10 +35,15 @@ else
   fail "Supervisor/service installer is missing or exceeds user-level scope"
 fi
 
-if grep -Eq 'shell[[:space:]]*=[[:space:]]*True' "$ROOT/backend/main.py"; then
-  fail "Shell execution is enabled in backend/main.py"
+PROCESS_CONTROL_FILES=("$ROOT/backend/main.py")
+if [[ -f "$ROOT/backend/deployments.py" ]]; then
+  PROCESS_CONTROL_FILES+=("$ROOT/backend/deployments.py")
+fi
+
+if grep -Eq 'shell[[:space:]]*=[[:space:]]*True' "${PROCESS_CONTROL_FILES[@]}"; then
+  fail "Shell execution is enabled in a backend process-control module"
 else
-  ok "No subprocess shell=True pattern detected"
+  ok "No subprocess shell=True pattern detected in backend process-control modules"
 fi
 
 if grep -Eq 'allow_origins=.*\*' "$ROOT/backend/main.py"; then
@@ -142,6 +147,40 @@ if command -v python3 >/dev/null 2>&1; then
   fi
 else
   fail "python3 is required"
+fi
+
+if [[ -f "$ROOT/scripts/static_site.py" ]]; then
+  if python3 - "$ROOT/scripts/static_site.py" <<'PY'
+import ast
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+tree = ast.parse(source)
+servers = [
+    node for node in ast.walk(tree)
+    if isinstance(node, ast.Call)
+    and isinstance(node.func, ast.Name)
+    and node.func.id == "HTTPServer"
+]
+if len(servers) != 1 or len(servers[0].args) < 2:
+    raise SystemExit("expected exactly one explicit HTTPServer binding")
+address, port = servers[0].args[:2]
+if not (
+    isinstance(address, ast.Tuple)
+    and len(address.elts) == 2
+    and isinstance(address.elts[0], ast.Constant)
+    and address.elts[0].value == "127.0.0.1"
+    and isinstance(address.elts[1], ast.Name)
+    and address.elts[1].id == "port"
+):
+    raise SystemExit("static-site HTTPServer must bind exactly to ('127.0.0.1', port)")
+PY
+  then
+    ok "Static-site HTTP server is restricted to the IPv4 loopback address"
+  else
+    fail "Static-site HTTP server is not explicitly restricted to IPv4 loopback"
+  fi
 fi
 
 if command -v node >/dev/null 2>&1; then

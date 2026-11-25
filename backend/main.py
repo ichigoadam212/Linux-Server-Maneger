@@ -22,8 +22,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from deployments import router as app_deployments_router
 
 app = FastAPI(title="LinuxCore Server Manager API", version="0.7.0")
+app.include_router(app_deployments_router)
 
 @app.middleware("http")
 async def prevent_api_response_caching(request, call_next):

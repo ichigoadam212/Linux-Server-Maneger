@@ -39,6 +39,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Install PRoot compatibility runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y proot debootstrap
+
       - name: Validate shell scripts
         run: bash -n ../scripts/*.sh ../scripts/lib/*.sh
 
@@ -117,3 +122,16 @@ jobs:
 
       - name: Run backend tests
         run: pytest -q
+
+      - name: Test real static-site deployment in Debian PRoot
+        run: |
+          set -euo pipefail
+          rootfs="$RUNNER_TEMP/debian-root"
+          sudo debootstrap --variant=minbase --include=python3,python3-venv,python3-pip,ca-certificates trixie "$rootfs" http://deb.debian.org/debian
+          sudo mkdir -p "$rootfs/work"
+          proot_args=(-r "$rootfs" -w / -b /proc -b /dev -b /etc/resolv.conf -b "$GITHUB_WORKSPACE:/work")
+          export PROOT_NO_SECCOMP=1
+          proot -v 1 "${proot_args[@]}" /usr/bin/python3 --version
+          proot "${proot_args[@]}" /usr/bin/python3 -m venv /tmp/linuxcore-venv
+          proot "${proot_args[@]}" -w /work/backend /tmp/linuxcore-venv/bin/python -m pip install -r requirements-dev.txt
+          proot "${proot_args[@]}" -w /work/backend /tmp/linuxcore-venv/bin/python -m pytest -q test_deployments.py
