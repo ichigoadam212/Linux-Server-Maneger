@@ -263,7 +263,7 @@ def test_ai_chat_uses_safe_read_only_context(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
     monkeypatch.setattr(main, "_deepseek_reply", fake_reply)
     monkeypatch.setattr(main, "metrics", lambda: {
-        "hostname": "test-host", "platform": "test-platform", "uptime_seconds": 60,
+        "hostname": "alice-workstation", "platform": "test-platform", "uptime_seconds": 60,
         "cpu_percent": 10.0, "cpu_count": 8, "memory_percent": 20.0,
         "memory_used_gb": 1.0, "memory_total_gb": 8.0, "disk_percent": 30.0,
         "disk_used_gb": 3.0, "disk_total_gb": 10.0,
@@ -289,6 +289,7 @@ def test_ai_chat_uses_safe_read_only_context(monkeypatch):
     assert "'mountpoint'" not in context_message
     assert "'device'" not in context_message
     assert "/home/alice/private" not in context_message
+    assert "alice-workstation" not in context_message
     assert "alice" not in context_message
     assert "cmdline" not in context_message
     assert "'environ':" not in context_message
