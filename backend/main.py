@@ -648,7 +648,6 @@ async def ai_chat(request: AIChatRequest):
         snapshot = metrics()
         storage_snapshot = storage()
         safe_context = {
-            "hostname": snapshot["hostname"],
             "platform": snapshot["platform"],
             "uptime_seconds": snapshot["uptime_seconds"],
             "cpu_percent": snapshot["cpu_percent"],
