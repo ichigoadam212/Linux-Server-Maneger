@@ -32,7 +32,7 @@ const translations = {
     aiTitle:"DeepSeek AI Assistant", aiSub:"Ask about Linux, programming, or analyze your connected host.",
     aiReady:"AI READY", aiOffline:"AI NOT CONFIGURED", aiWelcome:"Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.",
     aiPlaceholder:"Ask LinuxCore AI something...", aiSend:"Send", aiContext:"Include aggregate host metrics in this request",
-    aiPrivacy:"Chat messages are sent to DeepSeek; do not include passwords, API keys or private keys. If enabled, this request also shares aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary. Process command lines, environment variables, usernames and secrets are excluded.",
+    aiPrivacy:"Chat messages are sent to DeepSeek; do not include passwords, API keys or private keys. If enabled, this request also shares aggregate CPU, memory, disk, uptime, platform and a limited storage summary. Hostnames, process command lines, environment variables, usernames and secrets are excluded.",
     aiThinking:"Thinking...", aiSetup:"Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.",
     aiError:"The assistant could not answer. Check the backend and API configuration.", aiEmpty:"Write a message first.",
     aiUnavailable:"AI assistant is unavailable until its backend is configured.", cores:"cores", networkNA:"N/A"
@@ -66,7 +66,7 @@ const translations = {
     aiReady:"الذكاء الاصطناعي جاهز", aiOffline:"الذكاء الاصطناعي غير مُعد",
     aiWelcome:"أهلًا. أقدر أشرح Linux وأساعدك في البرمجة وأحلل مؤشرات السيرفر للقراءة فقط لما تختار مشاركتها.",
     aiPlaceholder:"اسأل LinuxCore AI...", aiSend:"إرسال", aiContext:"إرفاق مؤشرات السيرفر المجمعة في الطلب ده",
-    aiPrivacy:"تُرسل رسائل المحادثة إلى DeepSeek؛ لا تكتب كلمات مرور أو مفاتيح API أو مفاتيح خاصة. عند تفعيل الخيار، يُرسل أيضًا ملخص لمؤشرات المعالج والذاكرة والقرص ومدة التشغيل واسم المضيف والمنصة وملخص محدود للتخزين. لا تُرسل سطور أوامر العمليات أو متغيرات البيئة أو أسماء المستخدمين أو الأسرار.",
+    aiPrivacy:"تُرسل رسائل المحادثة إلى DeepSeek؛ لا تكتب كلمات مرور أو مفاتيح API أو مفاتيح خاصة. عند تفعيل الخيار، يُرسل أيضًا ملخص لمؤشرات المعالج والذاكرة والقرص ومدة التشغيل والمنصة وملخص محدود للتخزين. لا يُرسل اسم المضيف أو سطور أوامر العمليات أو متغيرات البيئة أو أسماء المستخدمين أو الأسرار.",
     aiThinking:"جاري التفكير...", aiSetup:"أضف DEEPSEEK_API_KEY إلى بيئة تشغيل Backend لتفعيل المساعد.",
     aiError:"المساعد لم يتمكن من الرد. راجع إعدادات Backend وAPI.", aiEmpty:"اكتب رسالة الأول.",
     aiUnavailable:"المساعد غير متاح حتى يتم إعداد Backend.", cores:"أنوية", networkNA:"غير متاح"
