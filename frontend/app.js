@@ -16,7 +16,7 @@ const translations = {
     overviewSub:"Monitor your Linux environment from one command center.", refresh:"Refresh",
     systemHealth:"SYSTEM HEALTH", serviceStatus:"Service status", viewAll:"VIEW ALL ↗", monitoring:"MONITORING",
     recentActivity:"Recent activity", environmentCapabilities:"Environment capabilities", liveChecks:"LIVE CHECKS",
-    loadingOverview:"Loading live environment data…", noUserServices:"No user services were discovered.",
+    loadingOverview:"Loading live environment data…", loadingData:"Loading module data…", noUserServices:"No user services were discovered.",
     serviceUnavailable:"User service manager is unavailable in this Linux environment.",
     activeState:"Active", inactiveState:"Not active", capabilityAvailable:"Available", capabilityUnavailable:"Unavailable",
     userServices:"User services", rootlessContainers:"Rootless containers", networkCounters:"Network counters",
@@ -32,7 +32,7 @@ const translations = {
     aiTitle:"DeepSeek AI Assistant", aiSub:"Ask about Linux, programming, or analyze your connected host.",
     aiReady:"AI READY", aiOffline:"AI NOT CONFIGURED", aiWelcome:"Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.",
     aiPlaceholder:"Ask LinuxCore AI something...", aiSend:"Send", aiContext:"Include aggregate host metrics in this request",
-    aiPrivacy:"If enabled, aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary are shared. Process command lines, environment variables and secrets are excluded.",
+    aiPrivacy:"Chat messages are sent to DeepSeek; do not include passwords, API keys or private keys. If enabled, this request also shares aggregate CPU, memory, disk, uptime, platform and a limited storage summary. Hostnames, process command lines, environment variables, usernames and secrets are excluded.",
     aiThinking:"Thinking...", aiSetup:"Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.",
     aiError:"The assistant could not answer. Check the backend and API configuration.", aiEmpty:"Write a message first.",
     aiUnavailable:"AI assistant is unavailable until its backend is configured.", cores:"cores", networkNA:"N/A"
@@ -49,7 +49,7 @@ const translations = {
     overviewSub:"راقب بيئة Linux من مركز تحكم واحد.", refresh:"تحديث",
     systemHealth:"حالة النظام", serviceStatus:"حالة الخدمات", viewAll:"عرض الكل ↗", monitoring:"المراقبة",
     recentActivity:"النشاط الأخير", environmentCapabilities:"إمكانيات البيئة", liveChecks:"فحوصات مباشرة",
-    loadingOverview:"جاري تحميل بيانات البيئة الفعلية…", noUserServices:"لم يتم العثور على خدمات للمستخدم.",
+    loadingOverview:"جاري تحميل بيانات البيئة الفعلية…", loadingData:"جاري تحميل بيانات الوحدة…", noUserServices:"لم يتم العثور على خدمات للمستخدم.",
     serviceUnavailable:"مدير خدمات المستخدم غير متاح في بيئة Linux الحالية.",
     activeState:"نشطة", inactiveState:"غير نشطة", capabilityAvailable:"متاح", capabilityUnavailable:"غير متاح",
     userServices:"خدمات المستخدم", rootlessContainers:"الحاويات Rootless", networkCounters:"عدادات الشبكة",
@@ -66,7 +66,7 @@ const translations = {
     aiReady:"الذكاء الاصطناعي جاهز", aiOffline:"الذكاء الاصطناعي غير مُعد",
     aiWelcome:"أهلًا. أقدر أشرح Linux وأساعدك في البرمجة وأحلل مؤشرات السيرفر للقراءة فقط لما تختار مشاركتها.",
     aiPlaceholder:"اسأل LinuxCore AI...", aiSend:"إرسال", aiContext:"إرفاق مؤشرات السيرفر المجمعة في الطلب ده",
-    aiPrivacy:"عند التفعيل، يتم إرسال مؤشرات المعالج والذاكرة والتخزين ومدة التشغيل واسم المضيف والمنصة وملخص محدود للتخزين. لا نرسل سطور أوامر العمليات أو متغيرات البيئة أو الأسرار.",
+    aiPrivacy:"تُرسل رسائل المحادثة إلى DeepSeek؛ لا تكتب كلمات مرور أو مفاتيح API أو مفاتيح خاصة. عند تفعيل الخيار، يُرسل أيضًا ملخص لمؤشرات المعالج والذاكرة والقرص ومدة التشغيل والمنصة وملخص محدود للتخزين. لا يُرسل اسم المضيف أو سطور أوامر العمليات أو متغيرات البيئة أو أسماء المستخدمين أو الأسرار.",
     aiThinking:"جاري التفكير...", aiSetup:"أضف DEEPSEEK_API_KEY إلى بيئة تشغيل Backend لتفعيل المساعد.",
     aiError:"المساعد لم يتمكن من الرد. راجع إعدادات Backend وAPI.", aiEmpty:"اكتب رسالة الأول.",
     aiUnavailable:"المساعد غير متاح حتى يتم إعداد Backend.", cores:"أنوية", networkNA:"غير متاح"
@@ -213,7 +213,11 @@ function hideAuthGate() {
 async function fetchJson(url, options) {
   const response = await fetch(url, { credentials: "same-origin", ...(options || {}) });
   if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
-  if (!response.ok) throw new Error("HTTP " + response.status);
+  if (!response.ok) {
+    const payload = await response.clone().json().catch(() => null);
+    const detail = payload && typeof payload.detail === "string" ? payload.detail : "";
+    throw new Error(detail || "HTTP " + response.status);
+  }
   return response.json();
 }
 
@@ -416,11 +420,16 @@ async function postJson(url, body, timeoutMs) {
 }
 
 async function renderModule(page) {
+  // A delayed action from an old module must not mutate the currently visible module.
+  if (currentPage !== page) return;
   const requestId = ++moduleRequestId;
   const isArabic = lang === "ar";
   const content = byId("moduleContent");
   if (!content) return;
   content.replaceChildren();
+  const loadingNotice = moduleNode("div", "module-notice", t("loadingData"));
+  loadingNotice.setAttribute("role", "status");
+  content.append(loadingNotice);
 
   const titles = {
     services: t("services"), storage: t("storage"), processes: t("processes"),
@@ -446,6 +455,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(30000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       const capabilities = data.capabilities || {};
       const host = data.host || {};
       const services = capabilities.user_services || {};
@@ -477,7 +487,10 @@ async function renderModule(page) {
         ? "بيانات الفحص الفعلية من بيئة Linux الحالية. الإمكانيات غير المتاحة لا يتم محاكاتها."
         : "Live checks from the current Linux environment. Unsupported capabilities are reported, never simulated.");
     } catch (error) {
-      if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
+      if (requestId === moduleRequestId && currentPage === page) {
+        loadingNotice.remove();
+        moduleNotice(error.message || t("apiUnavailable"));
+      }
     }
     return;
   }
@@ -489,6 +502,7 @@ async function renderModule(page) {
         fetchJson(API_BASE + "/api/v1/services", {cache:"no-store", signal:AbortSignal.timeout(10000)})
       ]);
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       if (managedResult.status === "fulfilled" && managedResult.value.available) {
         const managed = managedResult.value;
         moduleNotice(t("linuxcoreOwned") + " · " + managed.manager);
@@ -521,11 +535,11 @@ async function renderModule(page) {
         });
         content.append(actions);
       } else {
-        moduleNotice(managedResult.status === "rejected" ? t("apiUnavailable") : t("noData"));
+        moduleNotice(managedResult.status === "rejected" ? (managedResult.reason?.message || t("apiUnavailable")) : t("noData"));
       }
       moduleNotice(isArabic ? "خدمات systemd الخاصة بالمستخدم" : "systemd user services");
       if (systemdResult.status === "rejected") {
-        moduleNotice(t("apiUnavailable"));
+        moduleNotice(systemdResult.reason?.message || t("apiUnavailable"));
       } else if (!systemdResult.value.available) {
         moduleNotice(systemdResult.value.reason || t("systemdUnavailableDetail"));
       } else {
@@ -559,6 +573,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(12000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       if (!data.available) { moduleNotice(data.reason || t("noData")); return; }
       moduleNotice((isArabic ? "بيئة الحاويات: " : "Container runtime: ") + data.runtime);
       const items = Array.isArray(data.items) ? data.items : [];
@@ -588,6 +603,7 @@ async function renderModule(page) {
     }
 
     if (page === "terminal") {
+      loadingNotice.remove();
       moduleNotice(t("terminalDisabled"));
       const output = moduleNode("pre", "terminal-output",
         isArabic ? "اختار أمر تشخيص من الأزرار لعرض النتيجة هنا." : "Choose a diagnostic preset to view its output here.");
@@ -618,6 +634,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(10000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       const summary = moduleNode("div", "module-stat");
       summary.append(moduleNode("b", "", isArabic ? "نتيجة الفحص" : "Health check"),
         moduleNode("span", "", data.healthy ? (isArabic ? "سليم" : "Healthy") : (isArabic ? "يحتاج مراجعة" : "Needs attention")));
@@ -654,6 +671,7 @@ async function renderModule(page) {
         cache: "no-store", signal: AbortSignal.timeout(8000)
       });
       if (requestId !== moduleRequestId || currentPage !== page) return;
+      loadingNotice.remove();
       [
         ["AI provider", data.provider || "DeepSeek"],
         ["Model", data.model || "—"],
@@ -672,11 +690,12 @@ async function renderModule(page) {
 
     const endpoints = { storage: "storage", processes: "processes", network: "network" };
     const endpoint = endpoints[page];
-    if (!endpoint) { moduleNotice(t("noData")); return; }
+    if (!endpoint) { loadingNotice.remove(); moduleNotice(t("noData")); return; }
     const data = await fetchJson(API_BASE + "/api/v1/" + endpoint, {
       cache: "no-store", signal: AbortSignal.timeout(8000)
     });
     if (requestId !== moduleRequestId || currentPage !== page) return;
+    loadingNotice.remove();
     if (page === "network" && data.available === false) {
       moduleNotice(data.reason || t("unavailableNetwork")); return;
     }
@@ -709,7 +728,10 @@ async function renderModule(page) {
       if (interfaces.length === 0) moduleNotice(t("noData"));
     }
   } catch (error) {
-    if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
+    if (requestId === moduleRequestId && currentPage === page) {
+      loadingNotice.remove();
+      moduleNotice(error.message || t("apiUnavailable"));
+    }
   }
 }
 

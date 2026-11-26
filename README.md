@@ -148,14 +148,14 @@ The dashboard and monitoring API work without a DeepSeek key. To enable chat:
 
 Supported model IDs: deepseek-flash and deepseek-v4-pro.
 
-If the optional host context checkbox is enabled, only aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary are shared. Process command lines, environment variables, usernames and secrets are excluded.
+Chat messages are sent to DeepSeek for processing; do not include passwords, API keys, private keys or other secrets. The optional host context is sent only when its checkbox is explicitly enabled; it includes aggregate CPU, memory, disk, uptime, platform and a limited storage summary. Hostnames, process command lines, environment variables, usernames and secrets are excluded.
 
 ## Security boundaries
 
 - Localhost-only binding by default.
 - A restrictive dashboard Content Security Policy blocks remote scripts and non-loopback API connections.
 - No arbitrary shell execution and no user-supplied command strings.
-- Service actions are restricted to discovered systemd --user units.
+- systemd user-unit actions are restricted to units discovered at request time. LinuxCore API/dashboard lifecycle actions are separate and require PID files plus exact checkout-specific command-line identity; they never use sudo or system-wide service control.
 - Container actions require an accessible rootless runtime and a container present in its current inventory.
 - No sudo, root escalation, system-wide service control, firewall changes, package-manager endpoint, or Android system access.
 - AI is advisory-only and must not be treated as an execution agent.
