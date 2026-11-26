@@ -148,7 +148,7 @@ The dashboard and monitoring API work without a DeepSeek key. To enable chat:
 
 Supported model IDs: deepseek-flash and deepseek-v4-pro.
 
-Chat messages are sent to DeepSeek for processing; do not include passwords, API keys, private keys or other secrets. The optional host context is sent only when its checkbox is explicitly enabled; it includes aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary. Process command lines, environment variables, usernames and secrets are excluded.
+Chat messages are sent to DeepSeek for processing; do not include passwords, API keys, private keys or other secrets. The optional host context is sent only when its checkbox is explicitly enabled; it includes aggregate CPU, memory, disk, uptime, platform and a limited storage summary. Hostnames, process command lines, environment variables, usernames and secrets are excluded.
 
 ## Security boundaries
 
