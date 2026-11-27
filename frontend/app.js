@@ -367,8 +367,7 @@ function navigate(page, button) {
   });
   setText("pageTitle", translations[lang][page] || page);
 
-  if (isAI) checkAIStatus();
-  else if (isModule) renderModule(page);
+  if (isModule) renderModule(page);
   else { loadMetrics(false); loadOverviewPanels(); }
 }
 
