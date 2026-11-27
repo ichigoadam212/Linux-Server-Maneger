@@ -438,7 +438,7 @@ async function renderModule(page) {
         [isArabic ? "بيئة الحاويات" : "Container runtime", containers.available ? (containers.runtime || "Rootless runtime") : no],
         [isArabic ? "عدادات الشبكة" : "Network counters", network.available ? yes : no],
         [isArabic ? "أوامر التشخيص" : "Diagnostic commands", commandCount + " / " + commandTotal],
-        [isArabic ? "صلاحيات المساعد الذكي" : "AI permissions", isArabic ? "استشاري فقط" : "Advisory only"]
+        [isArabic ? "التكاملات الخارجية" : "External integrations", isArabic ? "معطّلة" : "Disabled"]
       ];
       rows.forEach(([key, value]) => {
         const row = moduleNode("div", "module-stat");
@@ -633,8 +633,8 @@ async function renderModule(page) {
         content.append(row);
       });
       moduleNotice(isArabic
-        ? "تعمل المراقبة محليًا دون إرسال بيانات المضيف إلى مزوّد ذكاء اصطناعي خارجي."
-        : "Monitoring runs locally; host data is not sent to an external AI provider.");
+        ? "تعمل المراقبة محليًا دون إرسال بيانات المضيف إلى أي خدمات خارجية."
+        : "Monitoring runs locally; host data is not sent to external services.");
       return;
     }
 
