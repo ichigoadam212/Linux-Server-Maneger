@@ -88,11 +88,14 @@ else
   fail "Vercel gateway security boundary is missing or incomplete"
 fi
 
-if grep -RniE 'DeepSeek|DEEPSEEK|api\.deepseek\.com' \
+# Ignore the developer's private backend/.env; it is runtime configuration,
+# not project source, and is checked separately for tracking and file permissions.
+if grep -RniE --exclude=.env --exclude-dir=__pycache__ \
+    'DeepSeek|DEEPSEEK|api\.deepseek\.com' \
     "$ROOT/backend" "$ROOT/frontend" "$ROOT/api" "$ROOT/scripts/local-web.py" \
     "$ROOT/scripts/smoke-test.sh" "$ROOT/scripts/test-local-web.py" \
     "$ROOT/scripts/test-vercel-gateway.cjs" "$ROOT/README.md" "$ROOT/docs" \
-    --exclude-dir=__pycache__ >/dev/null 2>&1; then
+    >/dev/null 2>&1; then
   fail "An external AI provider integration reference remains in the project"
 else
   ok "No external AI provider integration remains in project sources"
