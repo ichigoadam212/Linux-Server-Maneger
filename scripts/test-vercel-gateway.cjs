@@ -229,7 +229,11 @@ test("proxy rejects unlisted endpoints, wrong methods, and oversized bodies", as
     headers: { cookie, "content-type": "application/json" }, body: { anything: true }
   }));
   assert.equal(badMethod.status, 404);
-  const large = await invoke(handler, request("/api/v1/ai/chat", "POST", {
+  const removedAssistant = await invoke(handler, request("/api/v1/ai/status", "GET", { headers: { cookie } }));
+  assert.equal(removedAssistant.status, 404);
+  const removedChat = await invoke(handler, request("/api/v1/ai/chat", "POST", { headers: { cookie, "content-type": "application/json" }, body: {} }));
+  assert.equal(removedChat.status, 404);
+  const large = await invoke(handler, request("/api/v1/recovery/run", "POST", {
     headers: { cookie, "content-type": "application/json" }, body: "x".repeat(140_000)
   }));
   assert.equal(large.status, 413);

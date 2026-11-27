@@ -88,10 +88,14 @@ else
   fail "Vercel gateway security boundary is missing or incomplete"
 fi
 
-if grep -Fq 'DEEPSEEK_API_KEY=' "$ROOT/frontend"/*.js "$ROOT/frontend"/*.html 2>/dev/null; then
-  fail "A DeepSeek API key assignment appears in frontend assets"
+if grep -RniE 'DeepSeek|DEEPSEEK|api\.deepseek\.com' \
+    "$ROOT/backend" "$ROOT/frontend" "$ROOT/api" "$ROOT/scripts/local-web.py" \
+    "$ROOT/scripts/smoke-test.sh" "$ROOT/scripts/test-local-web.py" \
+    "$ROOT/scripts/test-vercel-gateway.cjs" "$ROOT/README.md" "$ROOT/docs" \
+    --exclude-dir=__pycache__ >/dev/null 2>&1; then
+  fail "An external AI provider integration reference remains in the project"
 else
-  ok "No DeepSeek API key assignment appears in frontend assets"
+  ok "No external AI provider integration remains in project sources"
 fi
 
 if grep -Fqx '.runtime/' "$ROOT/.gitignore"; then
