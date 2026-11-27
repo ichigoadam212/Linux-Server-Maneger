@@ -46,8 +46,6 @@ const API_RULES = [
   [/^\/api\/v1\/terminal\/run$/, "POST"],
   [/^\/api\/v1\/recovery\/check$/, "GET"],
   [/^\/api\/v1\/recovery\/run$/, "POST"],
-  [/^\/api\/v1\/ai\/status$/, "GET"],
-  [/^\/api\/v1\/ai\/chat$/, "POST"]
 ];
 
 function digest(value) {

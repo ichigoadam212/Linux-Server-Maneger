@@ -47,7 +47,14 @@ check_json "$API/services" 'import json,sys; d=json.load(sys.stdin); assert isin
 check_json "$API/managed-services" 'import json,sys; d=json.load(sys.stdin); assert d.get("available") is True and isinstance(d.get("items"), list); assert all(x.get("scope") == "linuxcore" and x.get("controllable") is True for x in d["items"])' "PID-verified LinuxCore service inventory"
 check_json "$API/containers" 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("available"), bool) and isinstance(d.get("items"), list)' "rootless container inventory" 30
 check_json "$API/terminal/commands" 'import json,sys; d=json.load(sys.stdin); ids={x["id"] for x in d["commands"]}; assert ids <= {"pwd","system","storage","memory","uptime","processes"}' "allowlisted diagnostic commands"
-check_json "$API/ai/status" 'import json,sys; d=json.load(sys.stdin); assert d.get("mode") == "advisory-only" and isinstance(d.get("configured"), bool)' "AI privacy status"
+for removed_path in /ai/status /ai/chat; do
+  code="$(linuxcore_curl --silent --output /dev/null --write-out '%{http_code}' "$API$removed_path")"
+  if [[ "$code" != "404" ]]; then
+    echo "FAIL: removed assistant route $removed_path returned HTTP $code instead of 404." >&2
+    exit 1
+  fi
+done
+echo "OK: removed assistant API routes return 404"
 
 recovery="$(linuxcore_curl --fail --silent --show-error --max-time 10 "$API/recovery/check")"
 if ! printf '%s' "$recovery" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("healthy") is True and all(x.get("present") for x in d.get("files", [])) and d.get("dependencies") is True'; then

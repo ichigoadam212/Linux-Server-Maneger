@@ -7,7 +7,7 @@ const translations = {
   en: {
     workspace:"WORKSPACE", overview:"Overview", hostName:"HOSTNAME", platform:"PLATFORM", uptime:"UPTIME",
     services:"Services", storage:"Storage", processes:"Processes", networkPage:"Network", containers:"Containers",
-    terminal:"Terminal", security:"Security", recovery:"Recovery", ai:"AI Assistant", settings:"Settings",
+    terminal:"Terminal", security:"Security", recovery:"Recovery", settings:"Settings",
     demoMode:"Demo mode", awaiting:"Awaiting server connection", systemStandby:"SYSTEM STANDBY", systemLive:"LIVE",
     hostConnected:"Host connected", preview:"Preview environment", previewText:"Live metrics appear when a Linux host is connected. No sample values are shown.",
     notConnected:"NOT CONNECTED", cpuUsage:"CPU USAGE", memory:"MEMORY", processorLoad:"Logical cores",
@@ -29,18 +29,12 @@ const translations = {
     securityDescription:"Current security boundaries for this project.", recoveryDescription:"Check LinuxCore and safely restart only its own local services.", settingsDescription:"Local integration and configuration status.",
     noData:"No data is available in the current environment.", unavailableNetwork:"Network counters are restricted by this Linux environment.",
     moduleRefresh:"Refresh", apiUnavailable:"The local LinuxCore backend is unavailable. Start the backend and try again.",
-    aiTitle:"DeepSeek AI Assistant", aiSub:"Ask about Linux, programming, or analyze your connected host.",
-    aiReady:"AI READY", aiOffline:"AI NOT CONFIGURED", aiWelcome:"Hello. I can explain Linux, help with programming, and analyze read-only host metrics when you choose to share them.",
-    aiPlaceholder:"Ask LinuxCore AI something...", aiSend:"Send", aiContext:"Include aggregate host metrics in this request",
-    aiPrivacy:"If enabled, aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary are shared. Process command lines, environment variables and secrets are excluded.",
-    aiThinking:"Thinking...", aiSetup:"Add DEEPSEEK_API_KEY to the backend environment to enable the assistant.",
-    aiError:"The assistant could not answer. Check the backend and API configuration.", aiEmpty:"Write a message first.",
-    aiUnavailable:"AI assistant is unavailable until its backend is configured.", cores:"cores", networkNA:"N/A"
+    cores:"cores", networkNA:"N/A"
   },
   ar: {
     workspace:"مساحة العمل", overview:"نظرة عامة", hostName:"اسم المضيف", platform:"النظام والمنصة", uptime:"مدة التشغيل",
     services:"الخدمات", storage:"التخزين", processes:"العمليات", networkPage:"الشبكة", containers:"الحاويات",
-    terminal:"الطرفية", security:"الأمان", recovery:"الاستعادة", ai:"المساعد الذكي", settings:"الإعدادات",
+    terminal:"الطرفية", security:"الأمان", recovery:"الاستعادة", settings:"الإعدادات",
     demoMode:"وضع المعاينة", awaiting:"في انتظار اتصال السيرفر", systemStandby:"النظام في وضع الاستعداد", systemLive:"مباشر",
     hostConnected:"متصل بالسيرفر", preview:"بيئة معاينة", previewText:"ستظهر المؤشرات الحقيقية عند اتصال خادم Linux. لا يتم عرض أرقام تجريبية.",
     notConnected:"غير متصل", cpuUsage:"استخدام المعالج", memory:"الذاكرة", processorLoad:"الأنوية المنطقية",
@@ -62,14 +56,7 @@ const translations = {
     securityDescription:"حدود الأمان الحالية للمشروع.", recoveryDescription:"فحص LinuxCore وإعادة تشغيل خدماته المحلية فقط بشكل آمن.", settingsDescription:"حالة التكامل والإعدادات المحلية.",
     noData:"لا توجد بيانات متاحة في البيئة الحالية.", unavailableNetwork:"عدادات الشبكة محجوبة بواسطة بيئة Linux الحالية.",
     moduleRefresh:"تحديث", apiUnavailable:"تعذر الاتصال بـ LinuxCore Backend المحلي. شغّل السيرفر وحاول مرة أخرى.",
-    aiTitle:"مساعد DeepSeek الذكي", aiSub:"اسأل عن Linux والبرمجة أو اطلب تحليل بيانات السيرفر المتصل.",
-    aiReady:"الذكاء الاصطناعي جاهز", aiOffline:"الذكاء الاصطناعي غير مُعد",
-    aiWelcome:"أهلًا. أقدر أشرح Linux وأساعدك في البرمجة وأحلل مؤشرات السيرفر للقراءة فقط لما تختار مشاركتها.",
-    aiPlaceholder:"اسأل LinuxCore AI...", aiSend:"إرسال", aiContext:"إرفاق مؤشرات السيرفر المجمعة في الطلب ده",
-    aiPrivacy:"عند التفعيل، يتم إرسال مؤشرات المعالج والذاكرة والتخزين ومدة التشغيل واسم المضيف والمنصة وملخص محدود للتخزين. لا نرسل سطور أوامر العمليات أو متغيرات البيئة أو الأسرار.",
-    aiThinking:"جاري التفكير...", aiSetup:"أضف DEEPSEEK_API_KEY إلى بيئة تشغيل Backend لتفعيل المساعد.",
-    aiError:"المساعد لم يتمكن من الرد. راجع إعدادات Backend وAPI.", aiEmpty:"اكتب رسالة الأول.",
-    aiUnavailable:"المساعد غير متاح حتى يتم إعداد Backend.", cores:"أنوية", networkNA:"غير متاح"
+    cores:"أنوية", networkNA:"غير متاح"
   }
 };
 
@@ -85,9 +72,6 @@ let metricsRequestId = 0;
 let overviewRequestId = 0;
 let moduleRequestId = 0;
 let previousNetwork = null;
-let aiConfigured = false;
-let aiBusy = false;
-const aiHistory = [];
 
 function t(key) {
   return (translations[lang] && translations[lang][key]) || key;
@@ -120,14 +104,8 @@ function applyLanguage() {
   setText("langBtn", lang === "en" ? "عربي" : "English");
   if (byId("langBtn")) byId("langBtn").setAttribute("aria-label", lang === "en" ? "Switch language" : "تغيير اللغة");
   setText("systemStatus", hostConnected ? t("systemLive") : t("systemStandby"));
-  setText("pageTitle", currentPage === "ai" ? t("ai") : (translations[lang][currentPage] || currentPage));
-  if (byId("aiInput")) byId("aiInput").placeholder = t("aiPlaceholder");
-  setText("aiSend", t("aiSend"));
-  setText("aiContextLabel", t("aiContext"));
-  setText("aiPrivacy", t("aiPrivacy"));
-  setText("aiTitle", t("aiTitle"));
-  setText("aiSub", t("aiSub"));
-  if (currentPage !== "overview" && currentPage !== "ai") renderModule(currentPage);
+  setText("pageTitle", translations[lang][currentPage] || currentPage);
+  if (currentPage !== "overview") renderModule(currentPage);
 }
 
 function setConnectionState(connected) {
@@ -382,19 +360,14 @@ function navigate(page, button) {
     button.setAttribute("aria-current", "page");
   }
 
-  const isAI = page === "ai";
-  const isModule = page !== "overview" && !isAI;
-  if (byId("aiWorkspace")) byId("aiWorkspace").hidden = !isAI;
+  const isModule = page !== "overview";
   if (byId("moduleWorkspace")) byId("moduleWorkspace").hidden = !isModule;
   [".page-head", ".notice", ".metric-grid", ".system-facts", ".content-grid"].forEach((selector) => {
-    document.querySelectorAll(selector).forEach((element) => { element.hidden = isAI || isModule; });
+    document.querySelectorAll(selector).forEach((element) => { element.hidden = isModule; });
   });
-  const footer = document.querySelector(".footer");
-  if (footer) footer.hidden = isAI;
-  setText("pageTitle", isAI ? t("ai") : (translations[lang][page] || page));
+  setText("pageTitle", translations[lang][page] || page);
 
-  if (isAI) checkAIStatus();
-  else if (isModule) renderModule(page);
+  if (isModule) renderModule(page);
   else { loadMetrics(false); loadOverviewPanels(); }
 }
 
@@ -465,7 +438,7 @@ async function renderModule(page) {
         [isArabic ? "بيئة الحاويات" : "Container runtime", containers.available ? (containers.runtime || "Rootless runtime") : no],
         [isArabic ? "عدادات الشبكة" : "Network counters", network.available ? yes : no],
         [isArabic ? "أوامر التشخيص" : "Diagnostic commands", commandCount + " / " + commandTotal],
-        [isArabic ? "صلاحيات المساعد الذكي" : "AI permissions", isArabic ? "استشاري فقط" : "Advisory only"]
+        [isArabic ? "التكاملات الخارجية" : "External integrations", isArabic ? "معطّلة" : "Disabled"]
       ];
       rows.forEach(([key, value]) => {
         const row = moduleNode("div", "module-stat");
@@ -650,23 +623,18 @@ async function renderModule(page) {
     }
 
     if (page === "settings") {
-      const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
-        cache: "no-store", signal: AbortSignal.timeout(8000)
-      });
-      if (requestId !== moduleRequestId || currentPage !== page) return;
       [
-        ["AI provider", data.provider || "DeepSeek"],
-        ["Model", data.model || "—"],
-        ["API key", data.configured ? (isArabic ? "مُعد" : "Configured") : (isArabic ? "غير مُعد" : "Not configured")],
-        ["AI mode", data.mode || "—"]
+        ["External integrations", isArabic ? "معطّلة" : "Disabled"],
+        ["Host data sharing", isArabic ? "معطّل" : "Disabled"],
+        ["Operating mode", "Local-first"]
       ].forEach(([key, value]) => {
         const row = moduleNode("div", "module-stat");
         row.append(moduleNode("b", "", key), moduleNode("span", "", value));
         content.append(row);
       });
       moduleNotice(isArabic
-        ? "يُحفظ مفتاح DeepSeek في backend/.env فقط، ولا يوضع في ملفات الواجهة أو GitHub."
-        : "Store the DeepSeek key only in backend/.env, never in frontend files or GitHub.");
+        ? "تعمل المراقبة محليًا دون إرسال بيانات المضيف إلى أي خدمات خارجية."
+        : "Monitoring runs locally; host data is not sent to external services.");
       return;
     }
 
@@ -710,99 +678,6 @@ async function renderModule(page) {
     }
   } catch (error) {
     if (requestId === moduleRequestId && currentPage === page) moduleNotice(error.message || t("apiUnavailable"));
-  }
-}
-
-function addMessage(role, message) {
-  const node = moduleNode("div", "ai-message " + role);
-  const who = moduleNode("span", "ai-who", role === "user" ? (lang === "ar" ? "أنت" : "YOU") : "LINUXCORE AI");
-  const body = moduleNode("p", "", message);
-  node.append(who, body);
-  const messages = byId("aiMessages");
-  if (!messages) return;
-  messages.append(node);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-async function checkAIStatus() {
-  const status = byId("aiStatus");
-  const setup = byId("aiSetup");
-  if (!status || !setup) return;
-  try {
-    const data = await fetchJson(API_BASE + "/api/v1/ai/status", {
-      cache: "no-store", signal: AbortSignal.timeout(8000)
-    });
-    aiConfigured = data.configured === true;
-    status.textContent = aiConfigured ? t("aiReady") : t("aiOffline");
-    status.className = "ai-status " + (aiConfigured ? "ready" : "offline");
-    setup.hidden = aiConfigured;
-  } catch (_) {
-    aiConfigured = false;
-    status.textContent = t("aiOffline");
-    status.className = "ai-status offline";
-    setup.hidden = false;
-  }
-}
-
-async function sendAI() {
-  if (aiBusy) return;
-  const input = byId("aiInput");
-  const send = byId("aiSend");
-  const messages = byId("aiMessages");
-  if (!input || !send || !messages) return;
-
-  const content = input.value.trim();
-  if (!content) {
-    toast(t("aiEmpty"));
-    return;
-  }
-  if (!aiConfigured) {
-    toast(t("aiUnavailable"));
-    return;
-  }
-
-  const userMessage = { role: "user", content: content };
-  aiHistory.push(userMessage);
-  while (aiHistory.length > 20) aiHistory.shift();
-  const requestMessages = aiHistory.map((item) => ({ role: item.role, content: item.content }));
-  input.value = "";
-  addMessage("user", content);
-  aiBusy = true;
-  send.disabled = true;
-  send.textContent = t("aiThinking");
-
-  const waiting = moduleNode("div", "ai-message assistant pending", t("aiThinking"));
-  messages.append(waiting);
-
-  try {
-    const response = await fetch(API_BASE + "/api/v1/ai/chat", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: requestMessages,
-        include_server_context: !!(byId("aiIncludeContext") && byId("aiIncludeContext").checked)
-      }),
-      signal: AbortSignal.timeout(40000)
-    });
-    const data = await response.json();
-    if (response.status === 401 && !IS_LOCAL_HOST) showAuthGate();
-    if (!response.ok) throw new Error(data.detail || "AI request failed");
-    if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("AI returned an empty response");
-    waiting.remove();
-    aiHistory.push({ role: "assistant", content: data.answer });
-    while (aiHistory.length > 20) aiHistory.shift();
-    addMessage("assistant", data.answer);
-  } catch (error) {
-    waiting.remove();
-    const index = aiHistory.lastIndexOf(userMessage);
-    if (index !== -1) aiHistory.splice(index, 1);
-    toast(error && error.message ? error.message : t("aiError"));
-  } finally {
-    aiBusy = false;
-    send.disabled = false;
-    send.textContent = t("aiSend");
-    input.focus();
   }
 }
 
@@ -861,13 +736,6 @@ document.querySelectorAll("[data-go]").forEach((link) => {
     event.preventDefault();
     navigate("services", document.querySelector('[data-page="services"]'));
   });
-});
-byId("aiSend").addEventListener("click", sendAI);
-byId("aiInput").addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    sendAI();
-  }
 });
 
 function tick() {

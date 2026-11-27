@@ -33,8 +33,6 @@ API_RULES = [
     (re.compile(r"^/api/v1/terminal/run$"), "POST"),
     (re.compile(r"^/api/v1/recovery/check$"), "GET"),
     (re.compile(r"^/api/v1/recovery/run$"), "POST"),
-    (re.compile(r"^/api/v1/ai/status$"), "GET"),
-    (re.compile(r"^/api/v1/ai/chat$"), "POST"),
 ]
 
 

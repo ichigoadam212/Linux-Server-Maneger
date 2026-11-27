@@ -10,7 +10,6 @@ Cyber-style, bilingual (Arabic / English) local website for monitoring and manag
 - **Linux host:** Debian/Ubuntu ARM64 user-space Linux environment.
 - **Backend:** Python + FastAPI. Monitoring is read-only; operational actions are explicitly allowlisted.
 - **Frontend:** Static HTML/CSS/JavaScript website opened in a browser.
-- **Optional AI:** DeepSeek chat proxy. The API key stays in the backend environment.
 - **JARVIS:** Separate project and runtime. Sharing a Linux user-space environment does not merge source code or grant Android privileges.
 - **Android bridge:** Not implemented in this repository. It must be a separately permissioned Android component.
 
@@ -27,10 +26,7 @@ The dashboard and API bind to 127.0.0.1 by default. Do not expose this developme
 - **Containers:** Discover and start/stop/restart only containers visible through rootless Podman or rootless Docker. Rootful Docker is intentionally not used.
 - **Terminal:** Fixed read-only diagnostic presets (pwd, system information, storage, memory, uptime and process summary). No free-form shell input or arbitrary command endpoint.
 - **Recovery:** Backs up backend/.env with restrictive permissions, checks required project files, then runs the project's own start/status scripts. If recovery fails, it restores the prior backend/.env (or removes a newly created one). It does not modify Android settings, system services, firewall rules or unrelated files.
-- Optional DeepSeek chat with explicit opt-in for aggregate host context.
-- Server-side API key handling; the browser never receives the key.
-- API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data and AI responses.
-- AI remains advisory-only and cannot execute commands or modify the host.
+- API responses use `Cache-Control: no-store` and `Pragma: no-cache` to discourage browser and intermediary caching of host data.
 - Debian/Ubuntu setup, start, stop, status, diagnostic, recovery and static security-check scripts.
 - Optional foreground supervisor with bounded health retries and graceful child cleanup, plus an opt-in systemd user service installer that refuses root/overwrite and rolls back failed installation attempts.
 - Local dashboard API calls pass through a loopback-only same-origin proxy that reads the optional backend token server-side; the browser never receives the bearer token.
@@ -133,22 +129,8 @@ The scripts can be invoked with bash; executable file permissions are not requir
 - POST /api/v1/terminal/run
 - GET /api/v1/recovery/check
 - POST /api/v1/recovery/run
-- GET /api/v1/ai/status
-- POST /api/v1/ai/chat
 
 Local interactive API docs: http://127.0.0.1:8000/docs.
-
-## Optional DeepSeek setup
-
-The dashboard and monitoring API work without a DeepSeek key. To enable chat:
-
-1. Create backend/.env from backend/.env.example.
-2. Add DEEPSEEK_API_KEY to backend/.env.
-3. Keep that file private. It is ignored by Git.
-
-Supported model IDs: deepseek-flash and deepseek-v4-pro.
-
-If the optional host context checkbox is enabled, only aggregate CPU, memory, disk, uptime, hostname, platform and a limited storage summary are shared. Process command lines, environment variables, usernames and secrets are excluded.
 
 ## Security boundaries
 
@@ -158,7 +140,6 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - Service actions are restricted to discovered systemd --user units.
 - Container actions require an accessible rootless runtime and a container present in its current inventory.
 - No sudo, root escalation, system-wide service control, firewall changes, package-manager endpoint, or Android system access.
-- AI is advisory-only and must not be treated as an execution agent.
 - Recovery operates only on this repository's own local startup scripts and backs up the backend environment file before running them.
 - Never commit API keys, passwords, private keys or populated environment files.
 - The default API remains loopback-only. Remote API requests fail closed unless a strong server-side bearer token is configured; a public dashboard still needs a user login/session gateway, TLS, rate limiting, audit logging and secure secret storage.
@@ -169,7 +150,6 @@ If the optional host context checkbox is enabled, only aggregate CPU, memory, di
 - Rootless Podman or rootless Docker may not be installed; container controls then report unavailable.
 - The Terminal page is a diagnostic console, not an unrestricted interactive shell.
 - Network counters may be unavailable when Android/PRoot restricts /proc/net/dev.
-- DeepSeek chat requires the user's own API key.
 - Public Vercel access requires the gateway's four server-side variables, a protected Vercel project, platform-level login rate limiting/WAF, HTTPS VPS origin, and server-side secret configuration. The API bearer token alone is not a public login system.
 - The gateway's in-memory sign-in throttle is only a best-effort per-instance guard; configure Vercel Firewall rate limiting before any external access. On the current Hobby team, Vercel Authentication protects Preview/deployment URLs but not a Production custom domain; the gateway login must be configured and verified before production.
 - The systemd user service requires an active systemd user manager; it is not available in many PRoot sessions.
