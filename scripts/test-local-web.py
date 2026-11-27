@@ -118,7 +118,7 @@ class LocalProxyTests(unittest.TestCase):
             query = MODULE.forward_api_request("GET", "/api/v1/health?debug=1", b"", "", TOKEN)
             content_type = MODULE.forward_api_request("POST", "/api/v1/recovery/run", b"{}", "text/plain", TOKEN)
             oversized = MODULE.forward_api_request(
-                "POST", "/api/v1/ai/chat", b"x" * (MODULE.MAX_REQUEST_BYTES + 1),
+                "POST", "/api/v1/recovery/run", b"x" * (MODULE.MAX_REQUEST_BYTES + 1),
                 "application/json", TOKEN
             )
         self.assertEqual(query[0], 400)
