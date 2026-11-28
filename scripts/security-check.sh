@@ -35,16 +35,10 @@ else
   fail "Supervisor/service installer is missing or exceeds user-level scope"
 fi
 
-if grep -Eq 'shell[[:space:]]*=[[:space:]]*True' "$ROOT/backend/main.py"; then
-  fail "Shell execution is enabled in backend/main.py"
+if python3 "$ROOT/scripts/check_python_security.py" "$ROOT/backend" "$ROOT/scripts"; then
+  :
 else
-  ok "No subprocess shell=True pattern detected"
-fi
-
-if grep -Eq 'allow_origins=.*\*' "$ROOT/backend/main.py"; then
-  fail "Wildcard CORS origin detected"
-else
-  ok "No wildcard CORS origin detected"
+  fail "Python static security checks failed"
 fi
 
 if grep -Fq 'http-equiv="Content-Security-Policy"' "$ROOT/frontend/index.html" &&

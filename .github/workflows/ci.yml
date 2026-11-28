@@ -78,6 +78,9 @@ jobs:
       - name: Verify dashboard live-data contract
         run: bash ../scripts/test-frontend-contract.sh
 
+      - name: Test Python security guard
+        run: python3 ../scripts/test_python_security.py
+
       - name: Run local security checks
         run: bash ../scripts/security-check.sh
 
